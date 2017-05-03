@@ -49,11 +49,9 @@ inline T normalRand(T mean = T(0), T stdev = T(1)) {
 /// Generate random problem data (X and y) of size (Nxp), optionally
 /// normalized so that each column is zero mean and unit variance.
 template <class T>
-inline void prepareData(const int N, const int p, const int r,
-			const bool norm,
-			T*& X, T*& y) {
+inline void prepareData(const int N, const int p, const bool norm, T*& X, T*& y) {
   X = new T[N*p];
-  y = new T[N*r];
+  y = new T[N];
   for (int j=0,k=0;j<p;j++) {
     T s = T(0);
     T s2 = T(0);
@@ -67,12 +65,12 @@ inline void prepareData(const int N, const int p, const int r,
       T std = sqrt(s2 - s*s/T(N));
       k -= N;
       for (int i=0;i<N;i++,k++) {
-	X[k] = (X[k] - s/T(N))/std;
+	      X[k] = (X[k] - s/T(N))/std;
       }
     }
   }
 
-  for (int i=0;i<N*r;i++) {
+  for (int i=0;i<N;i++) {
     y[i] = normalRand<T>();
   }
 }
@@ -148,31 +146,6 @@ inline double Timer::stopAndPrint(char* label) {
 // We support both double and float.  Change this typedef to select which.
 typedef double real;
 
-// Define default problem size.
-const int p_default = 64;
-const int N_default = 64;
-
-// For the case of solving for multiple right-hand-sides
-const int r = 1;
-
-// To have accurate times, we allow several trials for each size.
-const int num_rhs_default = 1;
-
-// Define which type of problem to test (0 for LARS, 1 for LASSO).
-const LARS::METHOD method = LARS::LARS;
-const LARS::STOP_TYPE stop_type = LARS::NORM;
-const real stop_val = real(1);
-const bool return_whole_path = true;
-const bool least_squares_beta = false;
-const bool verbose = true;
-const bool use_multiple_right_hand_sides = false;
-const KERNEL kernel = AUTO;
-const bool precomputed = false;
-
-///////////////////////////////////////////////////////////////////////////
-//////////////////////// End User-Editable Portion /////////////////////////
-///////////////////////////////////////////////////////////////////////////
-
 int main(int argc, char* argv[]){
   // Give message about calling conventions
   if (argc <= 1) {
@@ -180,9 +153,22 @@ int main(int argc, char* argv[]){
 	 << "Usage: " << endl
 	 << "testlars [N] [p] [# RHS]" << endl
 	 << " - Data matrix is (N x p) " << endl
-	 << " - # RHS is the number of right-hand side vectors to consider."
 	 << endl << endl;
   }
+
+  // Define default problem size.
+  const int p_default = 64;
+  const int N_default = 64;
+
+  // Define which type of problem to test (0 for LARS, 1 for LASSO).
+  const LARS::METHOD method = LARS::LARS;
+  const LARS::STOP_TYPE stop_type = LARS::NORM;
+  const real stop_val = real(1);
+  const bool return_whole_path = true;
+  const bool least_squares_beta = false;
+  const bool verbose = true;
+  const KERNEL kernel = AUTO;
+  const bool precomputed = false;
 
   // Data for dense lars problem
   real* X;
@@ -193,37 +179,26 @@ int main(int argc, char* argv[]){
   // Grab command line args
   int p = p_default;
   int N = N_default;
-  int num_rhs = num_rhs_default;
 
   if (argc > 1) N = atoi(argv[1]);
   if (argc > 2) p = atoi(argv[2]);
-  if (argc > 3) num_rhs = atoi(argv[3]);
 
   // Generate random data (function prepareData(...) is in miscutil.h
   //seedRand();
   srand(1);
-  prepareData(N, p, r, false, X, Y);
+  prepareData(N, p, false, X, Y);
 
   cout << "Testing LARS Library on random data: "
        << "X is " << N << " x " << p << ", "
-       << "Y is " << N << " x " << r << "..." << endl << flush;
+       << "Y is " << N << " x " << 1 << "..." << endl << flush;
 
   // Run LARS
   int M;
   Timer t;
   t.start();
 
-  for (int i=0;i<num_rhs;i++) {
-    beta.clear();
-    if (use_multiple_right_hand_sides) {
-      M = LARS::lars(&beta, X, Y, N, p, r, stop_type, stop_val,
-		     least_squares_beta, verbose, kernel, precomputed);
-    } else {
-      M = LARS::lars(&beta, X, Y, N, p, stop_type, stop_val,
-		     return_whole_path, least_squares_beta, verbose,
-		     kernel, precomputed);
-    }
-  }
+  M = LARS::lars(&beta, X, Y, N, p, stop_type, stop_val, return_whole_path,
+    least_squares_beta, verbose, kernel, precomputed);
 
   if (M <= 0) {
     cerr << "Bad return value. Exiting early. " << endl << flush;
