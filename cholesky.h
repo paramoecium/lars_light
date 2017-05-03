@@ -122,19 +122,22 @@ void downdate_cholesky(Real *L, int L_rows, int L_cols, int nrows, int id) {
 // Solves for (x) in a*x=b
 //  - x can be b
 //  - assumes T has a row iterator
-template< typename T, typename U, typename V>
-  void backsolve( const T& a, U& x, V& b, int n ) {
-  typedef typename T::value_type real;
-  int i,k;
-  real sum;
-  for (i=0;i<n;i++) {
-    const typename T::value_type* ai = a[i];
-    for (sum=b[i],k=i-1;k>=0;k--) sum -= ai[k]*x[k];
-    x[i]=sum/ai[i];
+// => Assume L is nxn, x and b is vector of length n
+void backsolve(const Real *a, Real *x, Real *b, int n) {
+  int i, k;
+  Real sum;
+  for (i = 0; i < n; i++) {
+    for (sum = b[i], k = i-1; k >= 0; k--) {
+      sum -= a[i * n + k] * x[k];
+      x[i] = sum / a[i * n + k];
+    }
   }
-  for (i=n-1;i>=0;i--) {
-    for (sum=x[i],k=i+1;k<n;k++) sum -= a[k][i]*x[k];
-    x[i]=sum/a[i][i];
+
+  for (i = n-1; i>= 0; i--) {
+    for (sum = x[i], k = i+1; k < n; k++) {
+      sum -= a[k * n + i] * x[k];
+      x[i] = sum / a[i * n + i];
+    }
   }
 }
 
