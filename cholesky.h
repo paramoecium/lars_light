@@ -50,9 +50,11 @@ const Real EPSILON = 1e-9;
 /////////////
 
 // Updates the cholesky (L) after having added data to row (j)
-void update_cholesky(Real* L, int L_rows, int L_cols, int j) {
+// assume L = nxn matrix
+void update_cholesky(Real* L, int n, int j) {
   Real sum = 0.0;
   real eps_small = EPSILON;
+  int L_cols = n, L_rows = n;
   int i, k;
   for (i = 0; i < j; ++i) {
     sum = L[j * L_cols + i];
@@ -79,9 +81,10 @@ void update_cholesky(Real* L, int L_rows, int L_cols, int j) {
 // We do not resize L in this function, but we set its last row to 0, since
 // L is one row/col smaller after this function
 // n is the number of rows and cols in the cholesky
-void downdate_cholesky(Real *L, int L_rows, int L_cols, int nrows, int id) {
+void downdate_cholesky(Real *L, int nrows, int id) {
   Real a = 0, b = 0, c = 0, s = 0, tau = 0;
   int lth = nrows - 1;
+  int L_rows = nrows, L_cols = nrows;
 
   int i, j;
   for (i = id; i < lth; ++i) {
