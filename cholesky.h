@@ -42,28 +42,34 @@
 #include <cstdio>
 #include <cmath>
 
+typedef float Real;
+const Real EPSILON = 1e-9;
+
 /////////////
 // Methods //
 /////////////
 
 // Updates the cholesky (L) after having added data to row (j)
-template<typename T>
-void update_cholesky( T& L, int j ) {
-  typedef typename T::value_type real;
-  real sum = 0.0;
-  real eps_small = numeric_limits<real>::epsilon();
-  int i;
-  for( i = 0; i < j; ++i ){
-    sum = L(j,i);
-    for( int k=0; k < i; k++ ) sum -= L(i,k)*L(j,k);
-    L(j,i) = sum/L(i,i);
+void update_cholesky(Real* L, int L_rows, int L_cols, int j) {
+  Real sum = 0.0;
+  real eps_small = EPSILON;
+  int i, k;
+  for (i = 0; i < j; ++i) {
+    sum = L[j * L_cols + i];
+    for (k = 0; k < i; ++k) {
+      sum -= L[i * L_cols + k] * L[j * L_cols + k];
+    }
+    L[j * L_cols + i] = sum / L[i * L_cols + i];
   }
-  sum = L(j,i);
-  for( int k=0; k < i; k++ ) sum -= L(i,k)*L(j,k);
-  if (sum <= 0.0) sum = eps_small;
-  L(j,j) = sqrt(sum);
-}
+  sum = L[j * L_cols + i];
 
+  for (k = 0; k < i; k++) {
+    sum -= L[i * L_cols + k] * L[j * L_cols + k];
+  }
+  if (sum <= 0.0) sum = eps_small;
+  
+  L[j * L_cols + j] = sqrt(sum);
+}
 
 // Downdates the cholesky (L) by removing row (id), given that there
 // are (nrows) total rows.
