@@ -32,68 +32,80 @@
  * 02110-1301 USA.
 */
 
-#include <iostream>
+//#include <iostream>
 #include <cstdio>
 #include "array2d.h"
 #include "cholesky.h"
 
-using namespace std;
+//using namespace std;
+typedef float Real;
 
-template<typename T>
-class DenseCholesky {
-public:
-  /// Constructor accepts the maximum possible size of the cholesky
-  DenseCholesky( int max_size ) : A(max_size, max_size), used(0) {}
+typedef struct DenseCholesky DenseCholesky;
+struct DenseCholesky {
 
-  /// Add a new row/col to the internal matrix (the number of values expected
-  /// is equal to the number of existing rows/cols + 1)
-  void addRowCol( const T* vals ) {
-    // grow the array2d
-    int j=used;
-    resize(used+1);
-    for(int i=0; i<=j; ++i)
-      A(j,i) = vals[i];
-    update_cholesky(A, j);
-  }
-
-  /// Remove a row/column from X updates cholesky automatically
-  void removeRowCol( int r ) {
-    downdate_cholesky(A,used,r);
-    used--;
-  }
-
-  /// Solves for beta given y
-  void solve(real* y, real* beta ) {
-    y_copy = (real*)calloc(nvars, sizeof(real));
-    memcpy(y_copy, y, sizeof(y));
-    backsolve( A, beta, y, used );
-    free(y_copy);
-  }
-
-  /// Print the cholesky
-  void print( ostream& out ) {
-    char buff[255];
-    out << "Used:" << used << endl;
-    for(int i=0; i< used; ++i){
-      for(int j=0; j<used; ++j){
-        sprintf(buff, "%16.7le", A(i,j));
-        out << buff;
-      }
-      out << endl;
-    }
-  }
-
-private:
-  void resize(int howManyRowCol ) {
-    if(A.nrows() < howManyRowCol || A.ncols() < howManyRowCol ) {
-      assert(0);
-    }
-    used=howManyRowCol;
-  }
-
-public:
-  array2d<T> A;
+  Real *A;
   int used;
-};
+  int A_rows, A_cols;
+  int max_size;
+
+  /// Constructor accepts the maximum possible size of the cholesky
+  DenseCholesky(int max_size) {
+    max_size = max_size;
+    used = A_rows = A_cols = 0;
+    A = (Real *) malloc(max_size * max_size); 
+  }
+
+  void (*_resize) (DenseCholesky *, int *);
+  void (*addRowCol) (DenseCholesky *, const Real*);
+  void (*removeRowCol) (DenseCholesky *, int);
+  void (*solve) (DenseCholesky *, Real*, Real*);
+}
+
+void _resize(DenseCholesky *self, int howManyRowCol) {
+  if (self->A_rows < howManyRowCol || self->A_cols < howManyRowCol) {
+    assert(0);
+  }
+  used = howManyRowCol;
+}
+
+/// Add a new row/col to the internal matrix (the number of values expected
+/// is equal to the number of existing rows/cols + 1)
+void addRowCol(DenseCholesky *self, const Real* vals) {
+  // grow A
+  int j = used, i;
+  self->_resize(self, used + 1);
+  for (i = 0; i <= j; ++i) {
+    self->A[j * self->A_cols + i] = vals[i];
+  }
+  update_cholesky(self->A, self->used, j);
+}
+
+/// Remove a row/column from X updates cholesky automatically
+void removeRowCol(DenseCholesky *self, int r) {
+  downdate_cholesky(self->A, self->used, r);
+  self->used -= 1;
+  self->A_cols = self->A_rows = self->used;
+}
+
+/// Solves for beta given y
+void solve(DenseCholesky *self, Real *y, Real *beta) {
+  // nvars is found in lars.h?
+  y_copy = (Real*)calloc(nvars, sizeof(Real));
+  memcpy(y_copy, y, sizeof(y));
+  backsolve(self->A, beta, y, self->used);
+  free(y_copy);
+}
+
+void print(DenseCholesky *self) {
+  printf("[DenseCholesky] Used : %d\n", self->used);
+  int i, j;
+  for (i = 0; i < used; ++i) {
+    for (j = 0; j < used; ++j) {
+      printf("              %16.7le", self->A[i * self->A_cols + j]);
+    }
+    printf("\n");
+  }
+  printf("\n");
+}
 
 #endif
