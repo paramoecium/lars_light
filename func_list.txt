@@ -1,0 +1,9 @@
+"cholesky.h"
+    void update_cholesky(Real& L, int j)
+    => void update_cholesky(Real* L, int L_rows, int L_cols, int j)  
+
+    void downdate_cholesky( T& L, int nrows, int id )
+    => void downdate_cholesky(Real *L, int L_rows, int L_cols, int nrows, int id) 
+
+    void backsolve(const T& a, U& x, V& b, int n)
+    =>void backsolve(const Real *a, Real *x, Real *b, int n)
