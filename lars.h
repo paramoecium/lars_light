@@ -2,7 +2,6 @@
 #define LARS__H
 
 #include <cstdio>
-#include <iostream>
 #include <fstream>
 #include <iterator>
 #include <numeric>
@@ -40,11 +39,11 @@ class Lars {
     stopcond = 0;
     k = 0;
     vars = 0;
-    fid = fopen("vlarspp_debug.txt","w");
-    //fid = stderr;
+    //fid = fopen("vlarspp_debug.txt","w");
+    fid = stderr;
     data_.getXtY( &c_ );
     // step dir = 0 so a_ = 0
-    a_.resize(c_.size());
+    a_.resize(vars);
     active_.resize(data_.ncols(),-1);
     temp_.resize(data_.ncols());
   }
@@ -54,12 +53,11 @@ class Lars {
     fprintf(fid, "DONE\n");
 #endif
 
-    fclose(fid);
+    //fclose(fid);
   }
   /** Perform a single interation of the LARS loop. */
   bool iterate(){
     if(vars >= nvars ) return false;
-    // if( beta_.size() >= data_.ncols() ) return false;
     k++;
 #ifdef DEBUG_PRINT
     fprintf(fid, "K: %12d\n", k );
@@ -68,7 +66,7 @@ class Lars {
     // [C j] = max(abs(c(I)));
     // j = I(j);
     real C = real(0); int j;
-    for(int i=0; i<c_.size(); ++i){
+    for(int i=0; i<vars; ++i){
       if(active_[i] != -1) continue;
       if( fabs(c_[i]) > C ) {
         j = i;
@@ -99,11 +97,9 @@ class Lars {
       fprintf(fid, "blash\n");
     }
     else {
-      active_[j] = beta_.size();
+      active_[j] = vars;
       beta_.push_back(make_pair(j,0.0));
-      w_.resize(beta_.size());
-      //fprintf(fid, "beta.size(): %d\n", beta_.size());
-      for(int f=0; f<beta_.size(); ++f){
+      for(int f=0; f<vars; ++f){
         temp_[f] = data_.col_dot_product(j, beta_[f].first );
       }
       chol_.addRowCol( &temp_[0] );
@@ -117,10 +113,8 @@ class Lars {
      * Solves for the step in parameter space given the current active parameters.
      **/
     real AA(0.0);
-    w_.resize(beta_.size());
-    assert(w_.size()==beta_.size());
     // set w_ = sign(c_[A])
-    for(int i=0; i<w_.size(); ++i){
+    for(int i=0; i<vars; ++i){
       w_[i] = sign(c_[beta_[i].first]);
     }
     //fprintf(fid, "sign(c_[A]):");
@@ -131,10 +125,10 @@ class Lars {
     //print(w_);
 
     // AA = 1/sqrt(dot(GA1,s));
-    for(int i=0; i<w_.size(); ++i) AA += w_[i]*sign(c_[beta_[i].first]);
+    for(int i=0; i<vars; ++i) AA += w_[i]*sign(c_[beta_[i].first]);
     AA = real(1.0)/sqrt(AA);
     //fprintf(fid, "AA: %12.5f\n", AA);
-    for(int i=0; i<w_.size(); ++i) w_[i] *= AA;
+    for(int i=0; i<vars; ++i) w_[i] *= AA;
 
 
     // calculate the a (uses beta to get active indices )
@@ -159,7 +153,7 @@ class Lars {
       int min_index = -1;
       // temp = [(C - c(I))./(AA - a(I)); (C + c(I))./(AA + a(I))];
       // gamma = min([temp(temp > 0); C/AA]);
-      for(int j=0; j<a_.size(); ++j) {
+      for(int j=0; j<vars; ++j) {
         // only consider inactive features
         if(active_[j] != -1) continue;
         real t1 = (C - c_[j])/(AA - a_[j]);
@@ -178,17 +172,17 @@ class Lars {
 #endif
     }
     // add lambda * w to beta
-    for(int i=0; i<beta_.size(); ++i)
+    for(int i=0; i<vars; ++i)
       beta_[i].second += gamma * w_[i];
 
     // update correlation with a
-    for(int i=0; i<c_.size(); ++i)
+    for(int i=0; i<vars; ++i)
       c_[i] -= gamma * a_[i];
 
     // print the beta
 #ifdef DEBUG_PRINT
     fprintf(fid, "beta: ");
-    for(int i=0; i<beta_.size(); ++i) {
+    for(int i=0; i<vars; ++i) {
       fprintf(fid, "%12.5f", beta_[i].second );
     }
     fprintf(fid, "\n");
@@ -201,8 +195,8 @@ class Lars {
 
   // incrementally updated quantities
   valarray<int> active_; // active[i] = position in beta of active param or -1
-  vector<real> c_; // correlation of columns of X with current residual
-  vector<real> w_;          // step direction ( w_.size() == # active )
+  real *c_ = (real*)calloc(nvars, sizeof(real)); // correlation of columns of X with current residual
+  real *w_ = (real*)calloc(nvars, sizeof(real));          // step direction ( w_.size() == # active )
   valarray<real> a_;   // correlation of columns of X with current step dir
   DenseCholesky<real> chol_;   // keeps track of cholesky
   // temporaries
@@ -220,7 +214,7 @@ class Lars {
 
 /** Return a reference to the current active set of beta parameters. */
 template<typename T>
-const vector<pair<int,typename T::real> >& Lars<T>::getParameters() {
+const vector<pair<int, real> >& Lars<T>::getParameters() {
   return beta_;
 }
 
@@ -231,16 +225,16 @@ const void Lars<T>::
 getParameters(vector<pair<int,typename T::real> >* p,
 	const vector<pair<int,typename T::real> >& b) {
 
-  vector<real> temp(c_.size());
-  vector<real> temp2(w_.size());
+  vector<real> temp(vars);
+  vector<real> temp2(vars);
 
-  p->resize(b.size());
+  p->resize(vars);
   data_.getXtY( &temp );
-  for(int i=0; i<b.size(); ++i){
+  for(int i=0; i<vars; ++i){
     temp2[i] = temp[b[i].first];
   }
   chol_.solve(temp2, &temp2 );
-  for(int i=0; i<b.size(); ++i){
+  for(int i=0; i<vars; ++i){
     (*p)[i].first=b[i].first;
     (*p)[i].second=temp2[i];
   }

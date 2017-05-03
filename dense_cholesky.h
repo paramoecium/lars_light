@@ -3,12 +3,12 @@
 #define __DENSE_CHOLESKY_H
 
 /** class DenseCholesky<float/double>
- * 
+ *
  * Represents state of cholesky factorization of symmetric positive definite X
  * - Allows you to add row/col to X and incrementally update cholesky
  * - Allows you to remove row/col from X and incrementally update cholesky
  * - Allows you to use the cholesky factorization to
- * - find beta for X beta = y 
+ * - find beta for X beta = y
  *
  * Uses general utility routines for cholesky decompositions found in
  * cholesky.h
@@ -44,7 +44,7 @@ class DenseCholesky {
 public:
   /// Constructor accepts the maximum possible size of the cholesky
   DenseCholesky( int max_size ) : A(max_size, max_size), used(0) {}
-  
+
   /// Add a new row/col to the internal matrix (the number of values expected
   /// is equal to the number of existing rows/cols + 1)
   void addRowCol( const T* vals ) {
@@ -62,9 +62,12 @@ public:
     used--;
   }
 
-  /// Solves for beta given y 
-  void solve( const vector<T> y, vector<T>* beta ) {
-    backsolve( A, *beta, y, used );   
+  /// Solves for beta given y
+  void solve(real* y, real* beta ) {
+    y_copy = (real*)calloc(nvars, sizeof(real));
+    memcpy(y_copy, y, sizeof(y));
+    backsolve( A, beta, y, used );
+    free(y_copy);
   }
 
   /// Print the cholesky
@@ -86,13 +89,6 @@ private:
       assert(0);
     }
     used=howManyRowCol;
-  }
-  
-  static double dot( const int N, const double* a, const double* b ) {
-    return cblas_ddot( N, a, 1, b, 1);
-  }
-  static float dot( const int N, const float* a, const float* b ) {
-    return cblas_sdot( N, a, 1, b, 1);
   }
 
 public:
