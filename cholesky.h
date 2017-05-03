@@ -79,42 +79,41 @@ void update_cholesky(Real* L, int L_rows, int L_cols, int j) {
 // We do not resize L in this function, but we set its last row to 0, since
 // L is one row/col smaller after this function
 // n is the number of rows and cols in the cholesky
-template<typename T>
-void downdate_cholesky( T& L, int nrows, int id ){
-  typedef typename T::value_type real;
-  // assume L is square
-  real a(0),b(0),c(0),s(0),tau(0);
-  int lth = nrows-1;
-  for(int i=id; i < lth; ++i){
-    for( int j=0; j<i; ++j) {
-      L(i,j) = L(i+1,j);
+void downdate_cholesky(Real *L, int L_rows, int L_cols, int nrows, int id) {
+  Real a = 0, b = 0, c = 0, s = 0, tau = 0;
+  int lth = nrows - 1;
+
+  int i, j;
+  for (i = id; i < lth; ++i) {
+    for (j = 0; j < i; ++j) {
+      L[i * L_cols + j] = L[(i+1) * L_cols + j];
     }
-    a = L(i+1,i);
-    b = L(i+1,i+1);
-    if(b==0){
-      L(i,i)=a;
+    a = L[(i+1) * L_cols + i];
+    b = L[(i+1) * L_cols + (i + 1)];
+    if (b == 0) {
+      L[i * L_cols + i] = a;
       continue;
     }
-    if( fabs(b) > fabs(a) ){
-      tau = -a/b;
-      s = 1/sqrt(1.0 + tau*tau);
+    if (fabs(b) > fabs(a)) {
+      tau = -a / b;
+      s = 1.0 / sqrt(1.0 + tau*tau);
       c = s*tau;
     } else {
-      tau = -b/a;
-      c = 1/sqrt(1.0 + tau*tau);
+      tau = -b / a;
+      c = 1.0 / sqrt(1.0 + tau*tau);
       s = c * tau;
     }
-    L(i,i) = c*a - s*b;
-    // L(i,i+1) = s*a + c*b;
-    for( int j=i+2; j<=lth; ++j){
-      a = L(j,i);
-      b = L(j, i+1);
-      L(j, i  ) = c*a - s*b;
-      L(j, i+1) = s*a + c*b;
+    L[i * L_cols + i] = c * a - s * b;
+    for (j = i+2; j <= lth; ++j) {
+      a = L[j * L_cols + i];
+      b = L[j * L_cols + (i+1)];
+      L[j * L_cols + i] = c*a - s*b;
+      L[J * L_cols + (i+1)] = s*a + c*b;
     }
   }
-  for( int i=0; i<= lth; ++i)
-    L(lth, i)=0;
+  for (i = 0; i <= lth; ++i) {
+    L[lth * L_cols + i] = 0.0;
+  }
 }
 
 // Backsolve the cholesky (L) for unknown (x) given a right-hand-side (b)
