@@ -31,7 +31,7 @@ matVecProd(Xprime, Xw, rows_of_Xprime, cols_of_Xprime)
 
 // line 222
 //cblas_daxpy(p, -beta[i].second, XtX_col[beta[i].first], 1, tmp_p, 1)
-daxpy(-beta[i].second, XtX_col[beta[i].first], tmp_p, p);
+daxpy(-beta[i].second, XtX_facecol[beta[i].first], tmp_p, p);
 
 // line 229
 //cblas_daxpy(N, -beta[i].second, &X[N*beta[i].first], 1, Xw, 1);
