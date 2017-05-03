@@ -98,7 +98,7 @@ class Lars {
      *
      **/
     //fprintf(fid, "activate(%d)\n", j );
-    if((active_[j] != -1) || beta_.size() >= data_.nrows()) {
+    if((active_[j] != -1) || vars >= data_.nrows()) {
       fprintf(fid, "blash\n");
     }
     else {

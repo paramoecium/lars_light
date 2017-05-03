@@ -34,7 +34,6 @@
 
 //#include <iostream>
 #include <cstdio>
-#include "array2d.h"
 #include "cholesky.h"
 
 //using namespace std;
@@ -52,7 +51,7 @@ struct DenseCholesky {
   DenseCholesky(int max_size) {
     max_size = max_size;
     used = A_rows = A_cols = 0;
-    A = (Real *) malloc(max_size * max_size); 
+    A = (Real *) malloc(max_size * max_size);
   }
 
   void (*_resize) (DenseCholesky *, int *);
