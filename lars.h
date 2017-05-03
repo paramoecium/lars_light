@@ -20,15 +20,11 @@ class Lars {
  public:
   typedef typename T::real real;
 
-  template<typename U>
-#ifdef DEBUG_PRINT
-  void print( const U& v ) {
-    for(int i=0; i<v.size(); ++i)
-      fprintf(fid, "%12.5f", v[i]);
-    fprintf(fid, "\n");
+  inline real sign( real temp ) {
+    if( temp > 0 ) return 1.0;
+    if( temp < 0 ) return  -1.0;
+    return 0;
   }
-#endif
-
   /** get the current parameters */
   const vector<pair<int,real> >& getParameters();
   /** get least squares parameters for active set */
@@ -36,11 +32,21 @@ class Lars {
 		     const vector<pair<int,real> >& b);
 
   /** Constructor accepts a LarsDenseData object */
-  Lars( T& data):
-    data_(data),
-    chol_( min(data.nrows(),data.ncols())),
+  Lars( T& data): data_(data), chol_( min(data.nrows(),data.ncols()))
   {
-    initialize();
+    // initially all parameters are 0, current residual = y
+    data_.getXtY( &Xty );
+    nvars = min<int>(data_.nrows()-1,data_.ncols());
+    stopcond = 0;
+    k = 0;
+    vars = 0;
+    fid = fopen("vlarspp_debug.txt","w");
+    //fid = stderr;
+    data_.getXtY( &c_ );
+    // step dir = 0 so a_ = 0
+    a_.resize(c_.size());
+    active_.resize(data_.ncols(),-1);
+    temp_.resize(data_.ncols());
   }
 
   ~Lars() {
@@ -61,8 +67,14 @@ class Lars {
 #endif
     // [C j] = max(abs(c(I)));
     // j = I(j);
-    real C; int j;
-    GetMaxAbsCorrelation(j, C);
+    real C = real(0); int j;
+    for(int i=0; i<c_.size(); ++i){
+      if(active_[i] != -1) continue;
+      if( fabs(c_[i]) > C ) {
+        j = i;
+        C = fabs(c_[i]);
+      }
+    }
 
 #ifdef DEBUG_PRINT
     fprintf(fid, "[C,j] = [%12.5f, %12d]\n", C, j+1 );
@@ -70,12 +82,68 @@ class Lars {
 #ifdef DEBUG_PRINT
     fprintf(fid, "activating %d\n", j+1 );
 #endif
-    activate(j);
-    // computes w, AA, and X'w
-    real AA = findSearchDirection();
+    /**
+     *  activate parameter j and updates cholesky
+     * ------------------
+     * Update state so that feature j is active with weight 0
+     *  if it is not already active.
+     *
+     * R = cholinsert(R,X(:,j),X(:,A));
+     * A = [A j];
+     * I(I == j) = [];
+     * vars = vars + 1;
+     *
+     **/
+    //fprintf(fid, "activate(%d)\n", j );
+    if((active_[j] != -1) || beta_.size() >= data_.nrows()) {
+      fprintf(fid, "blash\n");
+    }
+    else {
+      active_[j] = beta_.size();
+      beta_.push_back(make_pair(j,0.0));
+      w_.resize(beta_.size());
+      //fprintf(fid, "beta.size(): %d\n", beta_.size());
+      for(int f=0; f<beta_.size(); ++f){
+        temp_[f] = data_.col_dot_product(j, beta_[f].first );
+      }
+      chol_.addRowCol( &temp_[0] );
+      vars++;
+      // fprintf(fid, "vars %d\n", vars );
+    }
+
+    /**
+     * computes w, AA, and X'w
+     * -----------------------------
+     * Solves for the step in parameter space given the current active parameters.
+     **/
+    real AA(0.0);
+    w_.resize(beta_.size());
+    assert(w_.size()==beta_.size());
+    // set w_ = sign(c_[A])
+    for(int i=0; i<w_.size(); ++i){
+      w_[i] = sign(c_[beta_[i].first]);
+    }
+    //fprintf(fid, "sign(c_[A]):");
+    //print(w_);
+    // w_ = R\(R'\s)
+    chol_.solve(w_, &w_ );
+    //fprintf(fid, "w_:");
+    //print(w_);
+
+    // AA = 1/sqrt(dot(GA1,s));
+    for(int i=0; i<w_.size(); ++i) AA += w_[i]*sign(c_[beta_[i].first]);
+    AA = real(1.0)/sqrt(AA);
+    //fprintf(fid, "AA: %12.5f\n", AA);
+    for(int i=0; i<w_.size(); ++i) w_[i] *= AA;
+
+
+    // calculate the a (uses beta to get active indices )
+    // a_ = X'Xw
+    data_.compute_direction_correlation( beta_, w_, &(a_[0]) );
+
 #ifdef DEBUG_PRINT
     fprintf(fid, "W:");
-    print(w_);
+    //print(w_);
     fprintf(fid, "AA: %12.5f\n", AA);
 #endif
     real gamma;
@@ -93,7 +161,7 @@ class Lars {
       // gamma = min([temp(temp > 0); C/AA]);
       for(int j=0; j<a_.size(); ++j) {
         // only consider inactive features
-        if(isActive(j)) continue;
+        if(active_[j] != -1) continue;
         real t1 = (C - c_[j])/(AA - a_[j]);
         real t2 = (C + c_[j])/(AA + a_[j]);
         // consider only positive items
@@ -127,75 +195,6 @@ class Lars {
 #endif
     return true;
   }
-
- private:
-  /** initialize the state of LARS */
-  void initialize();
-
-  /** returns true if parameter i is active */
-  bool isActive( int i );
-
-  /** activate parameter i and updates cholesky */
-  bool activate( int i );
-
-  /** deactivates parameter i and downdates cholesky */
-  void deactivate( int i );
-
-
-  /**
-   * Function: sign
-   * --------------
-   *  returns sign of input (1,0,-1)
-   */
-  inline real sign( real temp ) {
-    if( temp > 0 ) return 1.0;
-    if( temp < 0 ) return  -1.0;
-    return 0;
-  }
-
-  /**
-   * Function: findSearchDirection
-   * -----------------------------
-   *
-   * Solves for the step in parameter space given the current
-   *  active parameters.
-   *
-   *  GA1 = R\(R'\s);
-   *  AA = 1/sqrt(dot(GA1,s));
-   *  w = AA*GA1;
-   *  returns AA
-   **/
-
-  real findSearchDirection() {
-    w_.resize(beta_.size());
-    assert(w_.size()==beta_.size());
-    // set w_ = sign(c_[A])
-    for(int i=0; i<w_.size(); ++i){
-      w_[i] = sign(c_[beta_[i].first]);
-    }
-    //fprintf(fid, "sign(c_[A]):");
-    //print(w_);
-    // w_ = R\(R'\s)
-    chol_.solve(w_, &w_ );
-    //fprintf(fid, "w_:");
-    //print(w_);
-
-    // AA = 1/sqrt(dot(GA1,s));
-    real AA(0.0);
-    for(int i=0; i<w_.size(); ++i) AA += w_[i]*sign(c_[beta_[i].first]);
-    AA = real(1.0)/sqrt(AA);
-    //fprintf(fid, "AA: %12.5f\n", AA);
-    for(int i=0; i<w_.size(); ++i) w_[i] *= AA;
-
-
-    // calculate the a (uses beta to get active indices )
-    // a_ = X'Xw
-    data_.compute_direction_correlation( beta_, w_, &(a_[0]) );
-
-    return AA;
-  }
-
-
   // member variables
   T& data_; // data(contains X and y)
   vector<pair<int,real> > beta_;   // current parameters(solution) [Not Sorted]
@@ -217,112 +216,7 @@ class Lars {
   int nvars;
   int k;
   FILE* fid;
-
-  /**
-   * Function: GetMaxCorrelation
-   * ---------------------------
-   * [C j] = max(abs(c(I)));
-   * j = I(j);
-   */
-  void GetMaxAbsCorrelation( int& index, real& val ) {
-    val = real(0);
-    for(int i=0; i<c_.size(); ++i){
-      if( isActive(i) ) continue;
-      if( fabs(c_[i]) > val ) {
-        index = i;
-        val = fabs(c_[i]);
-      }
-    }
-  }
 };
-
-/** Initialization routine. */
-template<typename T>
-void Lars<T>::initialize(){
-  // initially all parameters are 0
-  // so current residual is y
-
-  data_.getXtY( &Xty );
-  nvars = min<int>(data_.nrows()-1,data_.ncols());
-  stopcond = 0;
-  k = 0;
-  vars = 0;
-  fid = fopen("vlarspp_debug.txt","w");
- // fid = stderr;
-
-  data_.getXtY( &c_ );
-  // step dir = 0 so a_ = 0
-  a_.resize(c_.size());
-  active_.resize(data_.ncols(),-1);
-  temp_.resize(data_.ncols());
-}
-
-/** Returns bool of whether that row is active. */
-template<typename T>
-inline bool Lars<T>::isActive(int i) {
-  return active_[i] != -1;
-}
-
-/**
- * Function: activate
- * ------------------
- * Update state so that feature i is active with weight 0
- *  if it is not already active.
- *
- * R = cholinsert(R,X(:,j),X(:,A));
- * A = [A j];
- * I(I == j) = [];
- * vars = vars + 1;
- *
- **/
-template<typename T>
-bool Lars<T>::activate(int i) {
-  //fprintf(fid, "activate(%d)\n", i );
-  if(isActive(i) || beta_.size() >= data_.nrows()) {
-    fprintf(fid, "blash\n");
-    return false;
-  }
-  active_[i] = beta_.size();
-  beta_.push_back(make_pair(i,0.0));
-  w_.resize(beta_.size());
-  //fprintf(fid, "beta.size(): %d\n", beta_.size());
-  // dot i with all the other active columns f => xtx(i,j)
-  for(int f=0; f<beta_.size(); ++f){
-    temp_[f] = data_.col_dot_product(i, beta_[f].first );
-  }
-  chol_.addRowCol( &temp_[0] );
-  vars++;
-  // fprintf(fid, "vars %d\n", vars );
-  return true;
-}
-
-
-/**
- * Function: deactivate
- * --------------------
- * Update state so that feature i is no longer active if it is
- * already active.
- *
- *  R = choldelete(R,j);
- *  I = [I A(j)];
- *  A(j) = [];
- *  vars = vars - 1;
- **/
-template<typename T>
-void Lars<T>::deactivate(int i) {
-  assert(!isActive(i));
-  int beta_index = active_[i];
-  beta_.erase( beta_.begin() + beta_index ); // check this!!
-  active_[i] = -1;
-  chol_.removeRowCol( beta_index );
-  // fix the active set!
-  for(int r=0; r<active_.size(); ++r)
-    active_[r] = -1;
-  for(int r=0; r<beta_.size(); ++r)
-    active_[beta_[r].first]=r;
-  vars--;
-}
-
 
 /** Return a reference to the current active set of beta parameters. */
 template<typename T>
