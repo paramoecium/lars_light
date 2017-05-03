@@ -65,7 +65,7 @@ public:
   /// Solves for beta given y
   void solve(real* y, real* beta ) {
     y_copy = (real*)calloc(nvars, sizeof(real));
-    memcpy(y_copy, y, used * sizeof(real)/sizeof(char));
+    memcpy(y_copy, y, sizeof(y));
     backsolve( A, beta, y, used );
     free(y_copy);
   }
