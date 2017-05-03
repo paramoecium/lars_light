@@ -2,6 +2,8 @@
 #define LARS__H
 
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <iterator>
 #include <numeric>
@@ -34,8 +36,13 @@ class Lars {
   Lars( T& data): data_(data), chol_( min(data.nrows(),data.ncols()))
   {
     // initially all parameters are 0, current residual = y
-    data_.getXtY( &Xty );
     nvars = min<int>(data_.nrows()-1,data_.ncols());
+    active_ = (int*)malloc(data_.ncols(), sizeof(int));
+    memset(active_, -1, sizeof(active_));
+    c_ = (real*)calloc(nvars, sizeof(real));
+    w_ = (real*)calloc(nvars, sizeof(real));
+    a_ = (real*)calloc(nvars, sizeof(real));
+
     stopcond = 0;
     k = 0;
     vars = 0;
@@ -43,9 +50,7 @@ class Lars {
     fid = stderr;
     data_.getXtY( &c_ );
     // step dir = 0 so a_ = 0
-    a_.resize(vars);
-    active_.resize(data_.ncols(),-1);
-    temp_.resize(data_.ncols());
+    temp_ = (real*)calloc(nvars, sizeof(real));
   }
 
   ~Lars() {
@@ -194,17 +199,16 @@ class Lars {
   vector<pair<int,real> > beta_;   // current parameters(solution) [Not Sorted]
 
   // incrementally updated quantities
-  valarray<int> active_; // active[i] = position in beta of active param or -1
+  int *active_ = (int*)calloc(nvars, sizeof(int)); // active[i] = position in beta of active param or -1
   real *c_ = (real*)calloc(nvars, sizeof(real)); // correlation of columns of X with current residual
   real *w_ = (real*)calloc(nvars, sizeof(real));          // step direction ( w_.size() == # active )
-  valarray<real> a_;   // correlation of columns of X with current step dir
+  real *a_ = (real*)calloc(nvars, sizeof(real));   // correlation of columns of X with current step dir
   DenseCholesky<real> chol_;   // keeps track of cholesky
   // temporaries
-  valarray<real> temp_;      // temporary storage for active correlations
+  real *temp_ = (real*)calloc(nvars, sizeof(real));      // temporary storage for active correlations
 
 
   /** New Variable to exactly replicate matlab lars */
-  vector<real> Xty; // correlation of columns of X with current residual
   bool stopcond;
   int vars;
   int nvars;
