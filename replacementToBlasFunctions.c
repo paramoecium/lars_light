@@ -21,6 +21,11 @@ gramMatrix(double * X, double * XtX_buf, double * rows, double * cols)
 //cblas_daxpy()
 daxpy(wval[i], XtX_col[beta[i].first], a, p)
 
+// line dense_lars_data.h
+// cblas_idamax(p, tmp_p, 1)
+// return largest absolute value in Vector X with length p
+idamax(Real *X, int p);
+
 // line 203
 //cblas_daxpy()
 daxpy(wval[i], &X[beta[i].first*N], Xw, p)
@@ -42,8 +47,9 @@ daxpy(-beta[i].second, &X[N*beta[i].first], Xw, N);
 // line 231
 // now compute 2*X'*Xw = 2*X'*(y - X*beta)
 //cblas_dgemv(CblasColMajor,CblasTrans,N,p,2.0,X,N,Xw,1,0.0,tmp_p,1);
+// store to tmp_p
 // NOTE how to implement this?
-scalarMultiplyVector(2,X,X2,N);
+scalarMultiplyVector(2,X,X2, tmp_p,N);
 // NOTE transposition of matrix of alternative implementation?
 //transpose(X,Xprime, rows, cols);
 matVecProd(X, true, X2, N, p);

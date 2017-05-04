@@ -206,56 +206,33 @@ inline void DenseLarsData::compute_direction_correlation(const Idx *beta, const 
   }
 }
 
-
-
-template <>
-inline void DenseLarsData<double>::
-compute_direction_correlation(const vector< pair<int,double> >& beta,
-			      const vector<double>& wval,
-			      double* a ) {
-  // clear old data
-  memset(a,0,p*sizeof(double));
-
-  // compute X'*X*beta, in one of two ways:
-  if (kernel == KERN) {
-    for(int i=0,n=beta.size();i<n;++i) {
-      // add (X'*X)_i * w_i
-      cblas_daxpy(p, wval[i], XtX_col[beta[i].first], 1, a, 1);
-    }
-  } else {
-    // add columns into X*w
-    memset(Xw,0,N*sizeof(double));
-    for(int i=0,n=beta.size();i<n;++i)
-      cblas_daxpy(N, wval[i], &X[beta[i].first*N], 1, Xw, 1);
-    // now do X'*(X*w)
-    cblas_dgemv(CblasColMajor,CblasTrans,N,p,1.0,X,N,Xw,1,0.0,a,1);
-  }
-}
-
-// Computes current lambda given a sparse vector beta
-template <>
-inline double DenseLarsData<double>::
-compute_lambda(const vector< pair<int,double> >& beta) const {
-  // clear old data
-  memset(tmp_p,0,p*sizeof(double));
+inline double DenseLarsData::compute_lambda(const Idx* beta, const int beta_size) const {
+  //clear old data
+  memset(tmp_p, 0, p * sizeof(Real));
 
   // compute max(abs(2*X'*(X*beta - y))) in one of two ways:
   if (kernel == KERN) {
     // X'*y - (X'*X)*beta
-    memcpy(tmp_p,Xty,p*sizeof(double));
-    for(int i=0,n=beta.size();i<n;++i) {
+    memcpy(tmp_p, Xty, p * sizeof(Real));
+  
+    for (int i = 0, n = beta_size; i < n; ++i) {
       // subtract (X'*X)_i * beta_i
-      cblas_daxpy(p, -beta[i].second, XtX_col[beta[i].first], 1, tmp_p, 1);
+      // cblas_daxpy(p, -beta[i].second, XtX_col[beta[i].first], 1, tmp_p, 1);
+      daxpy(-beta[i].v, XtX_col[beta[i].id], tmp_p, p);
     }
-    return 2.0*fabs(tmp_p[cblas_idamax(p, tmp_p, 1)]);
+
+    return 2.0 * fabs(tmp_p[ idamax(tmp_p, p)]);
   } else {
     // compute Xw = y - X*beta
-    memcpy(Xw,y,N*sizeof(double));
-    for (int i=0,n=beta.size();i<n;++i)
-      cblas_daxpy(N, -beta[i].second, &X[N*beta[i].first], 1, Xw, 1);
+    memcpy(Xw, y, N * sizeof(Real));
+    for (int i = 0, n = beta_size; i < n; ++i) {
+      daxpy(-beta[i].v, &X[N * beta[i].id], Xw, N);
+    }
+    
     // now compute 2*X'*Xw = 2*X'*(y - X*beta)
-    cblas_dgemv(CblasColMajor,CblasTrans,N,p,2.0,X,N,Xw,1,0.0,tmp_p,1);
-    return fabs(tmp_p[cblas_idamax(p, tmp_p, 1)]);
+    // cblas_dgemv(CblasColMajor,CblasTrans,N,p,2.0,X,N,Xw,1,0.0,tmp_p,1);
+    scalarMutlplyVector(2, X, X2, tmp_p, N);
+    return fabs(tmp_p[idamax(tmp_p, p)]);
   }
 }
 
