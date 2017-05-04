@@ -39,7 +39,6 @@
 //using namespace std;
 typedef float Real;
 
-typedef struct DenseCholesky DenseCholesky;
 struct DenseCholesky {
 
   Real *A;
@@ -54,14 +53,19 @@ struct DenseCholesky {
     A = (Real *) malloc(max_size * max_size);
   }
 
-  void (*_resize) (DenseCholesky *, int *);
-  void (*addRowCol) (DenseCholesky *, const Real*);
-  void (*removeRowCol) (DenseCholesky *, int);
-  void (*solve) (DenseCholesky *, const Real*, Real*);
+  ~DenseCholesky() {
+    free(A);
+  }
+
+  void _resize(int howManyRowCol);
+  void addRowCol(const Real* vals);
+  void removeRowCol(int r);
+  void solve(const Real *y, Real *beta);
+  void print();
 }
 
-void _resize(DenseCholesky *self, int howManyRowCol) {
-  if (self->A_rows < howManyRowCol || self->A_cols < howManyRowCol) {
+void DenseCholesky::_resize(int howManyRowCol) {
+  if (A_rows < howManyRowCol || A_cols < howManyRowCol) {
     assert(0);
   }
   used = howManyRowCol;
@@ -69,38 +73,38 @@ void _resize(DenseCholesky *self, int howManyRowCol) {
 
 /// Add a new row/col to the internal matrix (the number of values expected
 /// is equal to the number of existing rows/cols + 1)
-void addRowCol(DenseCholesky *self, const Real* vals) {
+void DenseCholesky::addRowCol(const Real* vals) {
   // grow A
   int j = used, i;
-  self->_resize(self, used + 1);
+  _resize(used + 1);
   for (i = 0; i <= j; ++i) {
-    self->A[j * self->A_cols + i] = vals[i];
+    A[j * A_cols + i] = vals[i];
   }
-  update_cholesky(self->A, self->used, j);
+  update_cholesky(A, used, j);
 }
 
 /// Remove a row/column from X updates cholesky automatically
-void removeRowCol(DenseCholesky *self, int r) {
-  downdate_cholesky(self->A, self->used, r);
-  self->used -= 1;
-  self->A_cols = self->A_rows = self->used;
+void DenseCholesky::removeRowCol(int r) {
+  downdate_cholesky(A, used, r);
+  used -= 1;
+  A_cols = A_rows = used;
 }
 
 /// Solves for beta given y
-void solve(DenseCholesky *self, const Real *y, Real *beta) {
+void DenseCholesky::solve(const Real *y, Real *beta) {
   // nvars is found in lars.h?
   y_copy = (Real*)calloc(nvars, sizeof(Real));
   memcpy(y_copy, y, sizeof(y));
-  backsolve(self->A, beta, y, self->used);
+  backsolve(A, beta, y, used);
   free(y_copy);
 }
 
-void print(DenseCholesky *self) {
-  printf("[DenseCholesky] Used : %d\n", self->used);
+void DenseCholesky::print() {
+  printf("[DenseCholesky] Used : %d\n", used);
   int i, j;
   for (i = 0; i < used; ++i) {
     for (j = 0; j < used; ++j) {
-      printf("              %16.7le", self->A[i * self->A_cols + j]);
+      printf("              %16.7le", A[i * A_cols + j]);
     }
     printf("\n");
   }
