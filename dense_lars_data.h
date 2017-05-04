@@ -3,7 +3,7 @@
 #define DENSE_LARS_DATA_H
 
 /** class DenseLarsData<float/double>
- * 
+ *
  * Main data class for Lars library.  Contains the matrix (X) and vector (y),
  * where we are finding regularized solutions to the equation X*beta = y.
  *
@@ -210,12 +210,12 @@ inline void DenseLarsData::compute_direction_correlation(const Idx *beta, const 
 
 template <>
 inline void DenseLarsData<double>::
-compute_direction_correlation(const vector< pair<int,double> >& beta, 
-			      const vector<double>& wval, 
-			      double* a ) { 
+compute_direction_correlation(const vector< pair<int,double> >& beta,
+			      const vector<double>& wval,
+			      double* a ) {
   // clear old data
   memset(a,0,p*sizeof(double));
-  
+
   // compute X'*X*beta, in one of two ways:
   if (kernel == KERN) {
     for(int i=0,n=beta.size();i<n;++i) {
@@ -238,7 +238,7 @@ inline double DenseLarsData<double>::
 compute_lambda(const vector< pair<int,double> >& beta) const {
   // clear old data
   memset(tmp_p,0,p*sizeof(double));
-  
+
   // compute max(abs(2*X'*(X*beta - y))) in one of two ways:
   if (kernel == KERN) {
     // X'*y - (X'*X)*beta
@@ -265,7 +265,7 @@ compute_lambda(const vector< pair<int,double> >& beta) const {
 
 // dots two column vectors together
 template <>
-inline float DenseLarsData<float>::col_dot_product(const int c1, 
+inline float DenseLarsData<float>::col_dot_product(const int c1,
 						     const int c2) const {
   if (kernel == KERN) {
     return XtX_buf[c1+p*c2];
@@ -276,7 +276,7 @@ inline float DenseLarsData<float>::col_dot_product(const int c1,
 
 // So that we can handle both kernelized and not
 template <>
-inline void DenseLarsData<float>::getXtY(vector<float>* xty) const {  
+inline void DenseLarsData<float>::getXtY(vector<float>* xty) const {
   xty->resize(p);
   if (precomputed) {
     for(int i=0;i<p;++i) (*xty)[i] = y[i];
@@ -289,19 +289,19 @@ inline void DenseLarsData<float>::getXtY(vector<float>* xty) const {
 // Computes internal copy of X'*X if required
 template <>
 inline void DenseLarsData<float>::computeXtX() {
-  cblas_sgemm(CblasColMajor, CblasTrans, CblasNoTrans, 
+  cblas_sgemm(CblasColMajor, CblasTrans, CblasNoTrans,
 	      p, p, N, 1.0, X, N, X, N, 0.0, XtX_buf, p);
 }
 
 // Computes director correlation a = X'*Xw
 template <>
 inline void DenseLarsData<float>::
-compute_direction_correlation(const vector< pair<int,float> >& beta, 
-			      const vector<float>& wval, 
-			      float* a ) { 
+compute_direction_correlation(const vector< pair<int,float> >& beta,
+			      const vector<float>& wval,
+			      float* a ) {
   // clear old data
   memset(a,0,p*sizeof(float));
-  
+
   // compute X'*X*beta, in one of two ways:
   if (kernel == KERN) {
     for(int i=0,n=beta.size();i<n;++i) {
@@ -324,7 +324,7 @@ inline float DenseLarsData<float>::
 compute_lambda(const vector< pair<int,float> >& beta) const {
   // clear old data
   memset(tmp_p,0,p*sizeof(float));
-  
+
   // compute max(abs(2*X'*(X*beta - y))) in one of two ways:
   if (kernel == KERN) {
     // X'*y - (X'*X)*beta
