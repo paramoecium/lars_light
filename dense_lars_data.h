@@ -43,7 +43,7 @@ typedef struct Idx Idx;
 struct Idx{
   int id;
   Real v;
-}
+};
 
 typedef struct DenseLarsData DenseLarsData;
 struct DenseLarsData {
@@ -81,7 +81,7 @@ public:
   void computeXtX();
 
   // Computes director correlation
-  void compute_direction_correlation( 
+  void compute_direction_correlation(
           const Idx* beta, const int beta_size,
           const Real* wval, const int w_rows,
           Real* a);
@@ -89,18 +89,14 @@ public:
   // Computes current lambda given a sparse vector beta
   Real compute_lamda(const Idx* beta, const int beta_size) const;
 
-  // Computes least squares solution based on given sparsity pattern
-  // LILY :: Not implemented?
-  Real compute_lls_beta(Idx *beta) const;
-
   int nrows() const {return N;}
   int ncols() const {return p;}
-}
+};
 
 DenseLarsData::DenseLarsData(const Real* X_in, const Real* y_in, const int N_in, const int p_in,
     const KERNEL kernel_, const bool precomputed_) :
     X(X_in), y(y_in), N(N_in), p(p_in), kernel(kernel_), precomputed(precomputed_) {
-  
+
   // auto-select whether to use kernel or not
   if (kernel == AUTO) {
     if (N >= int(0.5*p)) kernel = KERN;
@@ -114,7 +110,7 @@ DenseLarsData::DenseLarsData(const Real* X_in, const Real* y_in, const int N_in,
   // - otherwise, we'll need some temp space to store X'*y
   if (precomputed == true) kernel = KERN;
   else Xty = (Real*) malloc(p * sizeof(Real));
-  
+
   // - If we are using a kernelized form, we need XtX_col and possibly
   //   XtX_buf (if X'*X was not precomputed)
   // - otherwise we need space for X*w in computing X'*(X*w)
@@ -169,7 +165,7 @@ inline void DenseLarseData::getXtY(Real* xty) const {
   free(xty);
   xty = (Real*) malloc(p * sizeof(Real);
   if (precomputed) {
-    memcpy(xty, y, p * sizeof(Real));   
+    memcpy(xty, y, p * sizeof(Real));
   } else {
 
     // LILY: I think we have to transpose X here?
@@ -188,7 +184,7 @@ inline void DenseLarsData::computeXtX() {
 }
 
 // Computes director correlation a = X'*X*w
-inline void DenseLarsData::compute_direction_correlation(const Idx *beta, const int beta_size, 
+inline void DenseLarsData::compute_direction_correlation(const Idx *beta, const int beta_size,
     const Real* wval, const int w_rows, Real* a) {
   // clear old data
   memset(a, 0, p*sizeof(Real));
@@ -213,7 +209,7 @@ inline void DenseLarsData::compute_direction_correlation(const Idx *beta, const 
     // LILY : X transpose?
     //matVecProd(X, Xw, a, N, p);
     // Dinesh: corrected
-    mvm(X, true, Xw, a, N, p); 
+    mvm(X, true, Xw, a, N, p);
   }
 }
 
@@ -225,7 +221,7 @@ inline Real DenseLarsData::compute_lambda(const Idx* beta, const int beta_size) 
   if (kernel == KERN) {
     // X'*y - (X'*X)*beta
     memcpy(tmp_p, Xty, p * sizeof(Real));
-  
+
     for (int i = 0, n = beta_size; i < n; ++i) {
       // subtract (X'*X)_i * beta_i
       // cblas_daxpy(p, -beta[i].second, XtX_col[beta[i].first], 1, tmp_p, 1);
@@ -239,7 +235,7 @@ inline Real DenseLarsData::compute_lambda(const Idx* beta, const int beta_size) 
     for (int i = 0, n = beta_size; i < n; ++i) {
       daxpy(-beta[i].v, &X[N * beta[i].id], Xw, N);
     }
-    
+
     // now compute 2*X'*Xw = 2*X'*(y - X*beta)
     // cblas_dgemv(CblasColMajor,CblasTrans,N,p,2.0,X,N,Xw,1,0.0,tmp_p,1);
     //scalarMutlplyVector(2, X, X2, tmp_p, N);

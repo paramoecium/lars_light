@@ -41,74 +41,62 @@ typedef float Real;
 
 struct DenseCholesky {
 
-  Real *A;
-  int used;
-  int A_rows, A_cols;
-  int max_size;
+  Real *L; // lower triangular matrix
+  int size = 0;
+  const int max_size;
 
   /// Constructor accepts the maximum possible size of the cholesky
-  DenseCholesky(int max_size) {
-    max_size = max_size;
-    used = A_rows = A_cols = 0;
-    A = (Real *) malloc(max_size * max_size);
+  DenseCholesky(int n) : max_size(n) {
+    L = (Real *) malloc(max_size * max_size);
   }
 
   ~DenseCholesky() {
-    free(A);
+    free(L);
   }
 
-  void _resize(int howManyRowCol);
   void addRowCol(const Real* vals);
-  void removeRowCol(int r);
+  //void removeRowCol(int r);
   void solve(const Real *y, Real *beta);
   void print();
-}
-
-void DenseCholesky::_resize(int howManyRowCol) {
-  if (A_rows < howManyRowCol || A_cols < howManyRowCol) {
-    assert(0);
-  }
-  used = howManyRowCol;
 }
 
 /// Add a new row/col to the internal matrix (the number of values expected
 /// is equal to the number of existing rows/cols + 1)
 void DenseCholesky::addRowCol(const Real* vals) {
-  // grow A
-  int j = used, i;
-  _resize(used + 1);
-  for (i = 0; i <= j; ++i) {
-    A[j * A_cols + i] = vals[i];
+  // grow L
+  int j = size;
+  size++;
+  for (int i = 0; i <= j; ++i) {
+    L[j * size + i] = vals[i];
   }
-  update_cholesky(A, used, j);
+  update_cholesky(L, size, j);
 }
 
 /// Remove a row/column from X updates cholesky automatically
-void DenseCholesky::removeRowCol(int r) {
-  downdate_cholesky(A, used, r);
-  used -= 1;
-  A_cols = A_rows = used;
-}
+// void DenseCholesky::removeRowCol(int r) {
+//   downdate_cholesky(L, size, r);
+//   size--;
+// }
 
 /// Solves for beta given y
 void DenseCholesky::solve(const Real *y, Real *beta) {
   // nvars is found in lars.h?
   y_copy = (Real*)calloc(nvars, sizeof(Real));
   memcpy(y_copy, y, sizeof(y));
-  backsolve(A, beta, y, used);
+  backsolve(L, beta, y, size);
   free(y_copy);
 }
 
 void DenseCholesky::print() {
-  printf("[DenseCholesky] Used : %d\n", used);
+  printf("[DenseCholesky] Used : %d\n", size);
   int i, j;
-  for (i = 0; i < used; ++i) {
-    for (j = 0; j < used; ++j) {
-      printf("              %16.7le", A[i * A_cols + j]);
+  for (i = 0; i < size; ++i) {
+    for (j = 0; j < size; ++j) {
+      printf("              %16.7le", L[i * size + j]);
     }
     printf("\n");
   }
   printf("\n");
-}
+};
 
 #endif

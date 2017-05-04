@@ -48,7 +48,7 @@ struct Lars {
     if (tmp > 0) return 1.0;
     if (tmp < 0) return -1.0;
     return 0;
-  } 
+  }
 
   // get the current parameters
   const Idx* getParameter();
@@ -56,7 +56,7 @@ struct Lars {
   const void getParameters(Idx* p, const Idx* b);
 
   // constructor accepts a LarsDenseData object
-  Lars(DenseLarsData *data): 
+  Lars(DenseLarsData *data):
     data_(data), chol_(min(data->nrows(), data->ncols())) {
     // initially all pareameters are 0, current residual = y
     // LILY: p is private???
@@ -78,7 +78,7 @@ struct Lars {
     // step dir = 0 so a_ = 0
     temp_ = (Real*) calloc(nvars * sizeof(Real));
   }
-  
+
   ~Lars() {
     #ifdef DEBUG_PRINT
     fprintf(fid, "Lars() DONE\n");
@@ -129,10 +129,10 @@ struct Lars {
       active_[j] = vars;
       beta_[vars](beta_pair(j, 0.0));
 
-      for (int f = 0; f < vars; ++f) {
+      for (int f = 0; f <= vars; ++f) {
         temp_[f] = data_->col_dot_product(j, beta_[f].first);
       }
-      chol_.addRowCol(temp_ + 0);
+      chol_.addRowCol(temp_ + 0); // when vars==0, temp_ should be all zeros
       vars++;
       // fprintf(fid, "vars %d\n", vars);
     }
@@ -195,11 +195,11 @@ struct Lars {
         Real t2 = (C + c_[j])/(AA + a_[j]);
         // consider only positive items
         if (t1 > 0 && t1 < gamma) {
-          gamma = t1; 
+          gamma = t1;
           min_index = j;
         }
         if (t2 > 0 && t2 < gamma) {
-          gamma = t2; 
+          gamma = t2;
           min_index = j;
         }
       }
@@ -244,7 +244,7 @@ void Lars::getParameters(beat_pair *p, const beta_pair *b) {
   }
 
   chol_.solve(temp2, temp2);
-  
+
   for (int i = 0; i < vars; ++i) {
     p[i].first = b[i].first;
     p[i].second = temp2[i];

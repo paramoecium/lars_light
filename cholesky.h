@@ -51,26 +51,47 @@ const Real EPSILON = 1e-9;
 
 // Updates the cholesky (L) after having added data to row (j)
 // assume L = nxn matrix
-void update_cholesky(Real* L, int n, int j) {
+void update_cholesky(Real* L, const int n, int j) {
   Real sum = 0.0;
   real eps_small = EPSILON;
-  int L_cols = n, L_rows = n;
   int i, k;
   for (i = 0; i < j; ++i) {
-    sum = L[j * L_cols + i];
+    sum = L[j * n + i];
     for (k = 0; k < i; ++k) {
-      sum -= L[i * L_cols + k] * L[j * L_cols + k];
+      sum -= L[i * n + k] * L[j * n + k];
     }
-    L[j * L_cols + i] = sum / L[i * L_cols + i];
+    L[j * n + i] = sum / L[i * n + i];
   }
-  sum = L[j * L_cols + i];
-
+  sum = L[j * n + i];
   for (k = 0; k < i; k++) {
-    sum -= L[i * L_cols + k] * L[j * L_cols + k];
+    sum -= L[i * n + k] * L[j * n + k];
   }
   if (sum <= 0.0) sum = eps_small;
-  
-  L[j * L_cols + j] = sqrt(sum);
+  L[j * n + j] = sqrt(sum);
+}
+
+// Backsolve the cholesky (L) for unknown (x) given a right-hand-side (b)
+// and a total number of rows/columns (n).
+//
+// Solves for x in Lx=b
+//  - x can be b
+// => Assume L is nxn, x and b is vector of length n
+void backsolve(const Real *L, Real *x, Real *b, int n) {
+  int i, k;
+  Real sum;
+  for (i = 0; i < n; i++) {
+    for (sum = b[i], k = i-1; k >= 0; k--) {
+      sum -= L[i * n + k] * x[k];
+      x[i] = sum / L[i * n + k];
+    }
+  }
+
+  for (i = n-1; i>= 0; i--) {
+    for (sum = x[i], k = i+1; k < n; k++) {
+      sum -= L[k * n + i] * x[k];
+      x[i] = sum / L[i * n + i];
+    }
+  }
 }
 
 // Downdates the cholesky (L) by removing row (id), given that there
@@ -81,67 +102,41 @@ void update_cholesky(Real* L, int n, int j) {
 // We do not resize L in this function, but we set its last row to 0, since
 // L is one row/col smaller after this function
 // n is the number of rows and cols in the cholesky
-void downdate_cholesky(Real *L, int nrows, int id) {
-  Real a = 0, b = 0, c = 0, s = 0, tau = 0;
-  int lth = nrows - 1;
-  int L_rows = nrows, L_cols = nrows;
-
-  int i, j;
-  for (i = id; i < lth; ++i) {
-    for (j = 0; j < i; ++j) {
-      L[i * L_cols + j] = L[(i+1) * L_cols + j];
-    }
-    a = L[(i+1) * L_cols + i];
-    b = L[(i+1) * L_cols + (i + 1)];
-    if (b == 0) {
-      L[i * L_cols + i] = a;
-      continue;
-    }
-    if (fabs(b) > fabs(a)) {
-      tau = -a / b;
-      s = 1.0 / sqrt(1.0 + tau*tau);
-      c = s*tau;
-    } else {
-      tau = -b / a;
-      c = 1.0 / sqrt(1.0 + tau*tau);
-      s = c * tau;
-    }
-    L[i * L_cols + i] = c * a - s * b;
-    for (j = i+2; j <= lth; ++j) {
-      a = L[j * L_cols + i];
-      b = L[j * L_cols + (i+1)];
-      L[j * L_cols + i] = c*a - s*b;
-      L[J * L_cols + (i+1)] = s*a + c*b;
-    }
-  }
-  for (i = 0; i <= lth; ++i) {
-    L[lth * L_cols + i] = 0.0;
-  }
-}
-
-// Backsolve the cholesky (L) for unknown (x) given a right-hand-side (b)
-// and a total number of rows/columns (n).
+// void downdate_cholesky(Real *L, int nrows, int id) {
+//   Real a = 0, b = 0, c = 0, s = 0, tau = 0;
+//   int lth = nrows - 1;
+//   int L_rows = nrows, L_cols = nrows;
 //
-// Solves for (x) in a*x=b
-//  - x can be b
-//  - assumes T has a row iterator
-// => Assume L is nxn, x and b is vector of length n
-void backsolve(const Real *a, Real *x, Real *b, int n) {
-  int i, k;
-  Real sum;
-  for (i = 0; i < n; i++) {
-    for (sum = b[i], k = i-1; k >= 0; k--) {
-      sum -= a[i * n + k] * x[k];
-      x[i] = sum / a[i * n + k];
-    }
-  }
-
-  for (i = n-1; i>= 0; i--) {
-    for (sum = x[i], k = i+1; k < n; k++) {
-      sum -= a[k * n + i] * x[k];
-      x[i] = sum / a[i * n + i];
-    }
-  }
-}
-
+//   int i, j;
+//   for (i = id; i < lth; ++i) {
+//     for (j = 0; j < i; ++j) {
+//       L[i * L_cols + j] = L[(i+1) * L_cols + j];
+//     }
+//     a = L[(i+1) * L_cols + i];
+//     b = L[(i+1) * L_cols + (i + 1)];
+//     if (b == 0) {
+//       L[i * L_cols + i] = a;
+//       continue;
+//     }
+//     if (fabs(b) > fabs(a)) {
+//       tau = -a / b;
+//       s = 1.0 / sqrt(1.0 + tau*tau);
+//       c = s*tau;
+//     } else {
+//       tau = -b / a;
+//       c = 1.0 / sqrt(1.0 + tau*tau);
+//       s = c * tau;
+//     }
+//     L[i * L_cols + i] = c * a - s * b;
+//     for (j = i+2; j <= lth; ++j) {
+//       a = L[j * L_cols + i];
+//       b = L[j * L_cols + (i+1)];
+//       L[j * L_cols + i] = c*a - s*b;
+//       L[J * L_cols + (i+1)] = s*a + c*b;
+//     }
+//   }
+//   for (i = 0; i <= lth; ++i) {
+//     L[lth * L_cols + i] = 0.0;
+//   }
+// }
 #endif
