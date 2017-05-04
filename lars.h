@@ -15,79 +15,101 @@
 #include "dense_cholesky.h"
 
 using namespace std;
+typedef float Real;
 
-template< typename T >
-class Lars {
- public:
-  typedef typename T::real real;
+struct Idx {
+  int id;
+  Real v;
+}
 
-  inline real sign( real temp ) {
-    if( temp > 0 ) return 1.0;
-    if( temp < 0 ) return  -1.0;
+struct Lars {
+  DenseLarsData *data_; // data(contains X and y)
+  beta_pair *beta_;   // current parameters(solution) [Not Sorted]
+
+  // incrementally updated quantities
+  int *active_; // active[i] = position in beta of active param or -1
+  Real *c_; // correlation of columns of X with current residual
+  Real *w_;          // step direction ( w_.size() == # active )
+  Real *a_;   // correlation of columns of X with current step dir
+  DenseCholesky chol_;   // keeps track of cholesky
+
+  // temporaries
+  Real *temp_;      // temporary storage for active correlations
+
+  /** New Variable to exactly replicate matlab lars */
+  bool stopcond;
+  int vars;
+  int nvars;
+  int k;
+  FILE* fid;
+
+
+  inline Real sign(Real tmp) {
+    if (tmp > 0) return 1.0;
+    if (tmp < 0) return -1.0;
     return 0;
-  }
-  /** get the current parameters */
-  const vector<pair<int,real> >& getParameters();
-  /** get least squares parameters for active set */
-  const void getParameters(vector<pair<int,real> >* p,
-		     const vector<pair<int,real> >& b);
+  } 
 
-  /** Constructor accepts a LarsDenseData object */
-  Lars( T& data): data_(data), chol_( min(data.nrows(),data.ncols()))
-  {
-    // initially all parameters are 0, current residual = y
-    active_ = (int*)malloc(data_.p, sizeof(int));
-    c_ = (real*)calloc(data_.p, sizeof(real));
+  // get the current parameters
+  const Idx* getParameter();
+  // get least squares parameters for active set
+  const void getParameters(Idx* p, const Idx* b);
+
+  // constructor accepts a LarsDenseData object
+  Lars(DenseLarsData *data): 
+    data_(data), chol_(min(data->nrows(), data->ncols())) {
+    // initially all pareameters are 0, current residual = y
+    // LILY: p is private???
+    active_ = (int*) malloc(data_->p * sizeof(int));
+    c_ = (Real*) calloc(data_->p * sizeof(Real));
     memset(active_, -1, sizeof(active_));
-    nvars = min<int>(data_.N-1,data_.p);
-    beta_ = (beta_pair*)malloc(nvars, sizeof(beta_pair));
-    c_ = (real*)calloc(nvars, sizeof(real));
-    w_ = (real*)calloc(nvars, sizeof(real));
-    a_ = (real*)calloc(nvars, sizeof(real));
+    nvars = min(data_->N - 1, data_->p);
+    beta_ = (beta_pair*) malloc(nvars * sizeof(beta_pair));
+    c_ = (Real*) calloc(nvars * sizeof(Real));
+    w_ = (Real*) calloc(nvars * sizeof(Real));
+    a_ = (Real*) calloc(nvars * sizeof(Real));
 
     stopcond = 0;
     k = 0;
     vars = 0;
     //fid = fopen("vlarspp_debug.txt","w");
     fid = stderr;
-    data_.getXtY( &c_ );
+    data_->getXtY(c_);
     // step dir = 0 so a_ = 0
-    temp_ = (real*)calloc(nvars, sizeof(real));
+    temp_ = (Real*) calloc(nvars * sizeof(Real));
   }
-
+  
   ~Lars() {
-#ifdef DEBUG_PRINT
-    fprintf(fid, "DONE\n");
-#endif
-
-    //fclose(fid);
+    #ifdef DEBUG_PRINT
+    fprintf(fid, "Lars() DONE\n");
+    #endif
   }
-  /** Perform a single interation of the LARS loop. */
-  bool iterate(){
-    if(vars >= nvars ) return false;
+
+  // Perform a single iteration of the LARS loop
+  bool iterate() {
+    if (vars >= nvars) return false;
     k++;
-#ifdef DEBUG_PRINT
-    fprintf(fid, "K: %12d\n", k );
+    #ifdef DEBUG_PRINT
+    fprintf(fid, "K: %12d\n", k);
     fprintf(fid, "%12d %12d\n", vars, nvars);
-#endif
-    // [C j] = max(abs(c(I)));
-    // j = I(j);
-    real C = real(0);
+    #endif
+
+    Real C = 0.0;
     int j;
-    for(int i=0; i<data_.p; ++i){
-      if(active_[i] != -1) continue;
-      if( fabs(c_[i]) > C ) {
+    for (int i = 0; i < data_->p; ++i) {
+      if (active_[i] != -1) continue;
+      if (fabs(c_[i]) > C) {
         j = i;
         C = fabs(c_[i]);
       }
-    }
-
-#ifdef DEBUG_PRINT
+      }
+    #ifdef DEBUG_PRINT
     fprintf(fid, "[C,j] = [%12.5f, %12d]\n", C, j+1 );
-#endif
-#ifdef DEBUG_PRINT
+    #endif
+    #ifdef DEBUG_PRINT
     fprintf(fid, "activating %d\n", j+1 );
-#endif
+    #endif
+
     /**
      *  activate parameter j and updates cholesky
      * ------------------
@@ -101,19 +123,18 @@ class Lars {
      *
      **/
     //fprintf(fid, "activate(%d)\n", j );
-    if((active_[j] != -1) || vars >= data_.p) {
+    if ((active_[j] != -1) || vars >= data_->p) {
       fprintf(fid, "blash\n");
-    }
-    else {
+    } else {
       active_[j] = vars;
-      beta_[vars](beta_pair(j,0.0));
+      beta_[vars](beta_pair(j, 0.0));
 
-      for(int f=0; f<vars; ++f){
-        temp_[f] = data_.col_dot_product(j, beta_[f].first );
+      for (int f = 0; f < vars; ++f) {
+        temp_[f] = data_->col_dot_product(j, beta_[f].first);
       }
-      chol_.addRowCol( &temp_[0] );
+      chol_.addRowCol(temp_ + 0);
       vars++;
-      // fprintf(fid, "vars %d\n", vars );
+      // fprintf(fid, "vars %d\n", vars);
     }
 
     /**
@@ -121,127 +142,116 @@ class Lars {
      * -----------------------------
      * Solves for the step in parameter space given the current active parameters.
      **/
-    real AA(0.0);
+    Real AA = 0.0;
     // set w_ = sign(c_[A])
-    for(int i=0; i<vars; ++i){
+    for (int i = 0; i < vars; ++i) {
       w_[i] = sign(c_[beta_[i].first]);
     }
     //fprintf(fid, "sign(c_[A]):");
     //print(w_);
     // w_ = R\(R'\s)
-    chol_.solve(w_, &w_ );
+    chol_.solve(w_, w_);
     //fprintf(fid, "w_:");
     //print(w_);
 
     // AA = 1/sqrt(dot(GA1,s));
-    for(int i=0; i<vars; ++i) AA += w_[i]*sign(c_[beta_[i].first]);
-    AA = real(1.0)/sqrt(AA);
+    for (int i = 0; i < vars; ++i) {
+      AA += w_[i] * sign(c_[beta_[i].first]);
+    }
+    AA = 1.0 / sqrt(AA);
     //fprintf(fid, "AA: %12.5f\n", AA);
-    for(int i=0; i<vars; ++i) w_[i] *= AA;
-
+    for (int i = 0; i < vars; ++i) {
+      w_[i] *= AA;
+    }
 
     // calculate the a (uses beta to get active indices )
     // a_ = X'Xw
-    data_.compute_direction_correlation( beta_, w_, &(a_[0]) );
+    data_->compute_direction_correlation(beta_, nvars, w_, nvars, a_ + 0);
 
-#ifdef DEBUG_PRINT
+    #ifdef DEBUG_PRINT
     fprintf(fid, "W:");
     //print(w_);
     fprintf(fid, "AA: %12.5f\n", AA);
-#endif
-    real gamma;
-    if( vars == nvars ) {
-      gamma = C/AA;
-#ifdef DEBUG_PRINT
+    #endif
+
+    Real gamma;
+    if (vars == nvars) {
+      gamma = C / AA;
+      #ifdef DEBUG_PRINT
       fprintf(fid, "gamma: %12.5f\n", gamma);
-#endif
+      #endif
     } else {
+
       //fprintf(fid, "a:");
       //print(a_);
-      gamma = C/AA;
+      gamma = C / AA;
       int min_index = -1;
       // temp = [(C - c(I))./(AA - a(I)); (C + c(I))./(AA + a(I))];
       // gamma = min([temp(temp > 0); C/AA]);
-      for(int j=0; j<vars; ++j) {
+      for (int j = 0; j < vars; ++j) {
         // only consider inactive features
-        if(active_[j] != -1) continue;
-        real t1 = (C - c_[j])/(AA - a_[j]);
-        real t2 = (C + c_[j])/(AA + a_[j]);
+        if (active_[j] != -1) continue;
+        Real t1 = (C - c_[j])/(AA - a_[j]);
+        Real t2 = (C + c_[j])/(AA + a_[j]);
         // consider only positive items
-        if( t1 > 0 && t1 < gamma ) {
-          gamma = t1; min_index = j;
+        if (t1 > 0 && t1 < gamma) {
+          gamma = t1; 
+          min_index = j;
         }
-        if( t2 > 0 && t2 < gamma ) {
-          gamma = t2; min_index = j;
+        if (t2 > 0 && t2 < gamma) {
+          gamma = t2; 
+          min_index = j;
         }
       }
-#ifdef DEBUG_PRINT
+
+      #ifdef DEBUG_PRINT
       fprintf(fid, "min_index: %12d\n", min_index+1);
       fprintf(fid, "gamma: %12.5f\n", gamma);
-#endif
+      #endif
     }
+
     // add lambda * w to beta
-    for(int i=0; i<vars; ++i)
+    for(int i = 0; i < vars; ++i)
       beta_[i].second += gamma * w_[i];
 
     // update correlation with a
-    for(int i=0; i<vars; ++i)
+    for(int i = 0; i < vars; ++i)
       c_[i] -= gamma * a_[i];
 
     // print the beta
-#ifdef DEBUG_PRINT
+    #ifdef DEBUG_PRINT
     fprintf(fid, "beta: ");
-    for(int i=0; i<vars; ++i) {
+    for (int i = 0; i < vars; ++i) {
       fprintf(fid, "%12.5f", beta_[i].second );
     }
     fprintf(fid, "\n");
-#endif
+    #endif
+
     return true;
   }
-  // member variables
-  struct beta_pair {
-    int first; // index of the column of X
-    real second; // corresponding coefficient
-  };
-  T& data_; // data(contains X and y)
-  beta_pair *beta_;   // current parameters(solution) [Not Sorted]
-
-  // incrementally updated quantities
-  int *active_; // active[i] = position in beta of active param or -1
-  real *c_; // correlation of columns of X with current residual
-  real *w_;          // step direction ( w_.size() == # active )
-  real *a_;   // correlation of columns of X with current step dir
-  DenseCholesky<real> chol_;   // keeps track of cholesky
-  // temporaries
-  real *temp_;      // temporary storage for active correlations
-
-
-  /** New Variable to exactly replicate matlab lars */
-  bool stopcond;
-  int vars;
-  int nvars;
-  int k;
-  FILE* fid;
 };
+
 
 /** Return the Least-squares solution to X*beta = y for the subset
  * of currently active beta parameters */
-template<typename T>
-const void Lars<T>::
-getParameters(beta_pair *p, const beta_pair *b) {
-  real *temp = (real*)calloc(vars, sizeof(real));
-  real *temp2 = (real*)calloc(vars, sizeof(real));
+void Lars::getParameters(beat_pair *p, const beta_pair *b) {
+  Real *temp = (Real*) calloc(vars * sizeof(Real));
+  Real *temp2 = (Real*) calloc(vars * sizeof(Real));
 
-  data_.getXtY(temp);
-  for(int i=0; i<vars; ++i){
+  data_->getXtY(temp);
+  for (int i = 0; i < vars; ++i) {
     temp2[i] = temp[b[i].first];
   }
-  solve(&chol_, temp2, temp2);
-  for(int i=0; i<vars; ++i){
+
+  chol_.solve(temp2, temp2);
+  
+  for (int i = 0; i < vars; ++i) {
     p[i].first = b[i].first;
     p[i].second = temp2[i];
   }
+
   free(temp);
   free(temp2);
 }
+
 #endif

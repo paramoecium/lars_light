@@ -20,12 +20,15 @@
 
     void addRowCol( const T* vals ) {
     => void addRowCol(DenseCholesky *self, const Real* vals) {
+    // called by iterate() in lars.h
 
     void removeRowCol( int r ) {
     => void (*removeRowCol) (DenseCholesky *, int);
 
     void solve(real* y, real* beta ) {
     => void (*solve) (DenseCholesky *, Real*, Real*);
+    // called by iterate() in lars.h
+    // called by getParameters() in lars.h
 
     void print( ostream& out ) {
     => void print(DenseCholesky *self) {
@@ -40,9 +43,13 @@
 
     T col_dot_product( int c1, int c2 ) const;
     => Real col_dot_product(int c1, int c2) const;
+    // Called by iterate() in lars.h
 
     void getXtY(Real* xty) const;
     => void getXtY(Real* xty) const;
+    // Called by Lars() in lars.h
+    // Called by getParameters() in lars.h
+
     void computeXtX();
     => void computeXtX();
 
@@ -52,6 +59,7 @@
 			      double* a ) { 
     => inline void DenseLarsData::compute_direction_correlation(const Idx *beta, const int beta_size, 
         const Real* wval, const int w_rows, Real* a) {
+    // called by iterator() in lars.h
 
     T compute_lambda(const vector< pair<int,T> >& beta) const;
     => Real compute_lamda(const Idx* beta, const int beta_size) const;
