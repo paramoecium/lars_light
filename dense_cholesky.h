@@ -57,7 +57,7 @@ struct DenseCholesky {
   void (*_resize) (DenseCholesky *, int *);
   void (*addRowCol) (DenseCholesky *, const Real*);
   void (*removeRowCol) (DenseCholesky *, int);
-  void (*solve) (DenseCholesky *, Real*, Real*);
+  void (*solve) (DenseCholesky *, const Real*, Real*);
 }
 
 void _resize(DenseCholesky *self, int howManyRowCol) {
@@ -87,7 +87,7 @@ void removeRowCol(DenseCholesky *self, int r) {
 }
 
 /// Solves for beta given y
-void solve(DenseCholesky *self, Real *y, Real *beta) {
+void solve(DenseCholesky *self, const Real *y, Real *beta) {
   // nvars is found in lars.h?
   y_copy = (Real*)calloc(nvars, sizeof(Real));
   memcpy(y_copy, y, sizeof(y));

@@ -175,9 +175,9 @@ namespace LARS{
       const int max_num_non_zero_beta = min(N,p);
 
       // internal storage for computing target value
-      vector< pair<int,U> > beta_old;
-      vector< pair<int,U> > beta_ls;
-      vector< pair<int,U> > beta_interp;
+      beta_pair*  beta_old;
+      beta_pair*  beta_ls;
+      beta_pair*  beta_interp;
 
       // internal variables
       bool target_reached = false;
@@ -192,14 +192,14 @@ namespace LARS{
         target_reached = false;
         if (!mylars.iterate()) {
           cerr << "LARS error: failed iteration.  M = "
-            << mylars.getParameters().size()
+            << m
             << endl << flush;
           target_reached = true;
           interpolation_fraction = U(1);
         }
 
         // grab local reference to current solution vector
-        const vector< pair<int,U> >& beta_new = mylars.getParameters();
+        const beta_pair *beta_new = mylars.getParameters();
         int num_non_zero_beta = beta_new.size();
 
         // print iteration details

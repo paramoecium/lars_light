@@ -36,9 +36,11 @@ class Lars {
   Lars( T& data): data_(data), chol_( min(data.nrows(),data.ncols()))
   {
     // initially all parameters are 0, current residual = y
-    nvars = min<int>(data_.nrows()-1,data_.ncols());
-    active_ = (int*)malloc(data_.ncols(), sizeof(int));
+    active_ = (int*)malloc(data_.p, sizeof(int));
+    c_ = (real*)calloc(data_.p, sizeof(real));
     memset(active_, -1, sizeof(active_));
+    nvars = min<int>(data_.N-1,data_.p);
+    beta_ = (beta_pair*)malloc(nvars, sizeof(beta_pair));
     c_ = (real*)calloc(nvars, sizeof(real));
     w_ = (real*)calloc(nvars, sizeof(real));
     a_ = (real*)calloc(nvars, sizeof(real));
@@ -70,8 +72,9 @@ class Lars {
 #endif
     // [C j] = max(abs(c(I)));
     // j = I(j);
-    real C = real(0); int j;
-    for(int i=0; i<vars; ++i){
+    real C = real(0);
+    int j;
+    for(int i=0; i<data_.p; ++i){
       if(active_[i] != -1) continue;
       if( fabs(c_[i]) > C ) {
         j = i;
@@ -98,12 +101,13 @@ class Lars {
      *
      **/
     //fprintf(fid, "activate(%d)\n", j );
-    if((active_[j] != -1) || vars >= data_.nrows()) {
+    if((active_[j] != -1) || vars >= data_.p) {
       fprintf(fid, "blash\n");
     }
     else {
       active_[j] = vars;
-      beta_.push_back(make_pair(j,0.0));
+      beta_[vars](beta_pair(j,0.0));
+
       for(int f=0; f<vars; ++f){
         temp_[f] = data_.col_dot_product(j, beta_[f].first );
       }
@@ -195,17 +199,21 @@ class Lars {
     return true;
   }
   // member variables
+  struct beta_pair {
+    int first; // index of the column of X
+    real second; // corresponding coefficient
+  };
   T& data_; // data(contains X and y)
-  vector<pair<int,real> > beta_;   // current parameters(solution) [Not Sorted]
+  beta_pair *beta_;   // current parameters(solution) [Not Sorted]
 
   // incrementally updated quantities
-  int *active_ = (int*)calloc(nvars, sizeof(int)); // active[i] = position in beta of active param or -1
-  real *c_ = (real*)calloc(nvars, sizeof(real)); // correlation of columns of X with current residual
-  real *w_ = (real*)calloc(nvars, sizeof(real));          // step direction ( w_.size() == # active )
-  real *a_ = (real*)calloc(nvars, sizeof(real));   // correlation of columns of X with current step dir
+  int *active_; // active[i] = position in beta of active param or -1
+  real *c_; // correlation of columns of X with current residual
+  real *w_;          // step direction ( w_.size() == # active )
+  real *a_;   // correlation of columns of X with current step dir
   DenseCholesky<real> chol_;   // keeps track of cholesky
   // temporaries
-  real *temp_ = (real*)calloc(nvars, sizeof(real));      // temporary storage for active correlations
+  real *temp_;      // temporary storage for active correlations
 
 
   /** New Variable to exactly replicate matlab lars */
@@ -216,31 +224,24 @@ class Lars {
   FILE* fid;
 };
 
-/** Return a reference to the current active set of beta parameters. */
-template<typename T>
-const vector<pair<int, real> >& Lars<T>::getParameters() {
-  return beta_;
-}
-
 /** Return the Least-squares solution to X*beta = y for the subset
  * of currently active beta parameters */
 template<typename T>
 const void Lars<T>::
-getParameters(vector<pair<int,typename T::real> >* p,
-	const vector<pair<int,typename T::real> >& b) {
+getParameters(beta_pair *p, const beta_pair *b) {
+  real *temp = (real*)calloc(vars, sizeof(real));
+  real *temp2 = (real*)calloc(vars, sizeof(real));
 
-  vector<real> temp(vars);
-  vector<real> temp2(vars);
-
-  p->resize(vars);
-  data_.getXtY( &temp );
+  data_.getXtY(temp);
   for(int i=0; i<vars; ++i){
     temp2[i] = temp[b[i].first];
   }
-  chol_.solve(temp2, &temp2 );
+  solve(&chol_, temp2, temp2);
   for(int i=0; i<vars; ++i){
-    (*p)[i].first=b[i].first;
-    (*p)[i].second=temp2[i];
+    p[i].first = b[i].first;
+    p[i].second = temp2[i];
   }
+  free(temp);
+  free(temp2);
 }
 #endif
