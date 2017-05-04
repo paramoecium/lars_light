@@ -29,3 +29,12 @@
 
     void print( ostream& out ) {
     => void print(DenseCholesky *self) {
+
+"dense_lars_data.h"
+
+    inline void DenseLarsData<double>::
+    compute_direction_correlation(const vector< pair<int,double> >& beta, 
+			      const vector<double>& wval, 
+			      double* a ) { 
+    => inline void DenseLarsData::compute_direction_correlation(const Idx *beta, const int beta_size, 
+        const Real* wval, const int w_rows, Real* a) {
