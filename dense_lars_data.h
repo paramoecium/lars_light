@@ -82,18 +82,19 @@ public:
 
   // Computes director correlation
   void compute_direction_correlation( 
-          const ___ beta,
-          const Real* wval,
+          const Idx* beta, const int beta_size,
+          const Real* wval, const int w_rows,
           Real* a);
 
   // Computes current lambda given a sparse vector beta
-  Real compute_lamda(const _____ * beta) const;
+  Real compute_lamda(const Idx* beta, const int beta_size) const;
 
   // Computes least squares solution based on given sparsity pattern
-  Real compute_lls_beta(____ *beta) const;
+  // LILY :: Not implemented?
+  Real compute_lls_beta(Idx *beta) const;
 
-  int nrows() {return N;}
-  int ncols() {return p;}
+  int nrows() const {return N;}
+  int ncols() const {return p;}
 }
 
 DenseLarsData::DenseLarsData(const Real* X_in, const Real* y_in, const int N_in, const int p_in,
@@ -153,7 +154,7 @@ inline DenseLarsData::~DenseLarsData() {
 ///////////////////////////
 
 // dots two column vectors together
-inline double DenseLarseData::col_dot_product(const int c1, const int c2) {
+inline Real DenseLarseData::col_dot_product(const int c1, const int c2) {
   if (kernel == KERN) {
     return XtX_buf[c1 + p*c2];
   } else {
@@ -206,7 +207,7 @@ inline void DenseLarsData::compute_direction_correlation(const Idx *beta, const 
   }
 }
 
-inline double DenseLarsData::compute_lambda(const Idx* beta, const int beta_size) const {
+inline Real DenseLarsData::compute_lambda(const Idx* beta, const int beta_size) const {
   //clear old data
   memset(tmp_p, 0, p * sizeof(Real));
 
@@ -233,92 +234,6 @@ inline double DenseLarsData::compute_lambda(const Idx* beta, const int beta_size
     // cblas_dgemv(CblasColMajor,CblasTrans,N,p,2.0,X,N,Xw,1,0.0,tmp_p,1);
     scalarMutlplyVector(2, X, X2, tmp_p, N);
     return fabs(tmp_p[idamax(tmp_p, p)]);
-  }
-}
-
-///////////////////////////
-// Single Precision Case //
-///////////////////////////
-
-// dots two column vectors together
-template <>
-inline float DenseLarsData<float>::col_dot_product(const int c1,
-						     const int c2) const {
-  if (kernel == KERN) {
-    return XtX_buf[c1+p*c2];
-  } else {
-    return cblas_sdot(N, &X[N*c1], 1, &X[N*c2], 1);
-  }
-}
-
-// So that we can handle both kernelized and not
-template <>
-inline void DenseLarsData<float>::getXtY(vector<float>* xty) const {
-  xty->resize(p);
-  if (precomputed) {
-    for(int i=0;i<p;++i) (*xty)[i] = y[i];
-  } else {
-    cblas_sgemv(CblasColMajor, CblasTrans, N, p, 1.0, X, N, y, 1, 0.0, Xty, 1);
-    for(int i=0;i<p;++i) (*xty)[i] = Xty[i];
-  }
-}
-
-// Computes internal copy of X'*X if required
-template <>
-inline void DenseLarsData<float>::computeXtX() {
-  cblas_sgemm(CblasColMajor, CblasTrans, CblasNoTrans,
-	      p, p, N, 1.0, X, N, X, N, 0.0, XtX_buf, p);
-}
-
-// Computes director correlation a = X'*Xw
-template <>
-inline void DenseLarsData<float>::
-compute_direction_correlation(const vector< pair<int,float> >& beta,
-			      const vector<float>& wval,
-			      float* a ) {
-  // clear old data
-  memset(a,0,p*sizeof(float));
-
-  // compute X'*X*beta, in one of two ways:
-  if (kernel == KERN) {
-    for(int i=0,n=beta.size();i<n;++i) {
-      // add (X'*X)_i * w_i
-      cblas_saxpy(p, wval[i], XtX_col[beta[i].first], 1, a, 1);
-    }
-  } else {
-    // add columns into X*w
-    memset(Xw,0,N*sizeof(float));
-    for(int i=0,n=beta.size();i<n;++i)
-      cblas_saxpy(N, wval[i], &X[beta[i].first*N], 1, Xw, 1);
-    // now do X'*(X*w)
-    cblas_sgemv(CblasColMajor,CblasTrans,N,p,1.0,X,N,Xw,1,0.0,a,1);
-  }
-}
-
-// Computes current lambda given a sparse vector beta
-template <>
-inline float DenseLarsData<float>::
-compute_lambda(const vector< pair<int,float> >& beta) const {
-  // clear old data
-  memset(tmp_p,0,p*sizeof(float));
-
-  // compute max(abs(2*X'*(X*beta - y))) in one of two ways:
-  if (kernel == KERN) {
-    // X'*y - (X'*X)*beta
-    memcpy(tmp_p,Xty,p*sizeof(float));
-    for(int i=0,n=beta.size();i<n;++i) {
-      // subtract (X'*X)_i * beta_i
-      cblas_saxpy(p, -beta[i].second, XtX_col[beta[i].first], 1, tmp_p, 1);
-    }
-    return 2.0*fabs(tmp_p[cblas_isamax(p, tmp_p, 1)]);
-  } else {
-    // compute Xw = y - X*beta
-    memcpy(Xw,y,N*sizeof(float));
-    for (int i=0,n=beta.size();i<n;++i)
-      cblas_saxpy(N, -beta[i].second, &X[N*beta[i].first], 1, Xw, 1);
-    // now compute 2*X'*Xw = 2*X'*(y - X*beta)
-    cblas_sgemv(CblasColMajor,CblasTrans,N,p,2.0,X,N,Xw,1,0.0,tmp_p,1);
-    return fabs(tmp_p[cblas_isamax(p, tmp_p, 1)]);
   }
 }
 

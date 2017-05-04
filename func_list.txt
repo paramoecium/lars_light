@@ -31,6 +31,20 @@
     => void print(DenseCholesky *self) {
 
 "dense_lars_data.h"
+    DenseLarsData(const T* X, const T* y, const int N, const int p,
+        const KERNEL kernel_, const bool precomputed_);
+    => DenseLarsData(const Real* X_in, const Real* y_in, const int N_in, const int p_in,
+        const KERNEL kernel_, const bool precomputed_);
+
+    ~DenseLarsData();
+
+    T col_dot_product( int c1, int c2 ) const;
+    => Real col_dot_product(int c1, int c2) const;
+
+    void getXtY(Real* xty) const;
+    => void getXtY(Real* xty) const;
+    void computeXtX();
+    => void computeXtX();
 
     inline void DenseLarsData<double>::
     compute_direction_correlation(const vector< pair<int,double> >& beta, 
@@ -38,3 +52,16 @@
 			      double* a ) { 
     => inline void DenseLarsData::compute_direction_correlation(const Idx *beta, const int beta_size, 
         const Real* wval, const int w_rows, Real* a) {
+
+    T compute_lambda(const vector< pair<int,T> >& beta) const;
+    => Real compute_lamda(const Idx* beta, const int beta_size) const;
+
+    // LILY :: Not implemented?
+    Real compute_lls_beta(Idx *beta) const;
+
+    int nrows() {return N;}
+    => int nrows() {return N;}
+
+    int ncols() {return p;}
+    => int ncols() {return p;}
+
