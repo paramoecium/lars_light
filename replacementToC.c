@@ -11,6 +11,7 @@ dot(&X[N*c1], &X[N*c2], N)
 matVecProd(double * X, double * y, double * Xty, int p, int N)
 
 // line 180
+// line 177 in dense_lars_data.h
 //cblas_dgemm(CblasColMajor
 //cols = p
 //rows = N
@@ -25,9 +26,10 @@ daxpy(wval[i], XtX_col[beta[i].first], a, p)
 daxpy(wval[i], &X[beta[i].first*N], Xw, p)
 
 // line 205
-// now do X'*(X*w)
+// now do X'*(X*w) store to y
 // cblas_dgemv(CblasColMajor,CblasTrans,N,p,1.0,X,N,Xw,1,0.0,a,1);
-matVecProd(Xprime, Xw, rows_of_Xprime, cols_of_Xprime)
+// !!! Have to transpose Xprime
+matVecProd(Xprime, Xw, y, rows_of_Xprime, cols_of_Xprime)
 
 // line 222
 //cblas_daxpy(p, -beta[i].second, XtX_col[beta[i].first], 1, tmp_p, 1)
