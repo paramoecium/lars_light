@@ -158,7 +158,9 @@ inline Real DenseLarseData::col_dot_product(const int c1, const int c2) {
   if (kernel == KERN) {
     return XtX_buf[c1 + p*c2];
   } else {
-    return dot(N, &X[N*c1], 1, &X[N*c2], 1);
+    //return dot(N, &X[N*c1], 1, &X[N*c2], 1);
+    // Dinesh: corrected
+    dot(&X[N*c1], &X[N*c2], N);
   }
 }
 
@@ -169,15 +171,20 @@ inline void DenseLarseData::getXtY(Real* xty) const {
   if (precomputed) {
     memcpy(xty, y, p * sizeof(Real));   
   } else {
+
     // LILY: I think we have to transpose X here?
-    matVecProd(X, y, Xty, N, p);
+    //matVecProd(X, y, Xty, N, p);
     // cblas_dgemv(CblasColMajor, CblasTrans, N, p, 1.0, X, N, y, 1, 0.0, Xty, 1);
+    // Dinesh: this should be better
+    mvm(X, true, y, Xty, N, p);
 }
 
 // Computes internal copy of X'*X if required
 inline void DenseLarsData::computeXtX() {
   // LILY: I think we have to transpose X here?
-  gramMatrix(X, XtX, N, p);
+  //gramMatrix(X, XtX, N, p);
+  // Dinesh: corrected
+  mmm(X, transpose, X, XtX_buf, p, N, p);
 }
 
 // Computes director correlation a = X'*X*w
@@ -192,6 +199,7 @@ inline void DenseLarsData::compute_direction_correlation(const Idx *beta, const 
       // add (X'*X)_i * w_i
       // cblas_daxpy(p, wval[i], XtX_col[beta[i].first], 1, a, 1);
       daxpy(wval[i], XtX_col[beta[i].Idx], a, p);
+      // Dinesh: I am assuming here .Idx is your new variable name
     }
   } else {
     // add columns into X*w
@@ -203,7 +211,9 @@ inline void DenseLarsData::compute_direction_correlation(const Idx *beta, const 
     // now do X'*(X*w)
     // cblas_dgemv(CblasColMajor,CblasTrans,N,p,1.0,X,N,Xw,1,0.0,a,1);
     // LILY : X transpose?
-    matVecProd(X, Xw, a, N, p);
+    //matVecProd(X, Xw, a, N, p);
+    // Dinesh: corrected
+    mvm(X, true, Xw, a, N, p); 
   }
 }
 
@@ -232,7 +242,8 @@ inline Real DenseLarsData::compute_lambda(const Idx* beta, const int beta_size) 
     
     // now compute 2*X'*Xw = 2*X'*(y - X*beta)
     // cblas_dgemv(CblasColMajor,CblasTrans,N,p,2.0,X,N,Xw,1,0.0,tmp_p,1);
-    scalarMutlplyVector(2, X, X2, tmp_p, N);
+    //scalarMutlplyVector(2, X, X2, tmp_p, N);
+    amvm(2.0, X, true, Xw, tmp_p, N, p);
     return fabs(tmp_p[idamax(tmp_p, p)]);
   }
 }
