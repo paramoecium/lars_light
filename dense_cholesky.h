@@ -80,11 +80,7 @@ void DenseCholesky::addRowCol(const Real* vals) {
 
 /// Solves for beta given y
 void DenseCholesky::solve(const Real *y, Real *beta) {
-  // nvars is found in lars.h?
-  y_copy = (Real*)calloc(nvars, sizeof(Real));
-  memcpy(y_copy, y, sizeof(y));
   backsolve(L, beta, y, size);
-  free(y_copy);
 }
 
 void DenseCholesky::print() {

@@ -74,9 +74,9 @@ void update_cholesky(Real* L, const int n, int j) {
 // and a total number of rows/columns (n).
 //
 // Solves for x in Lx=b
-//  - x can be b
+// x can be b
 // => Assume L is nxn, x and b is vector of length n
-void backsolve(const Real *L, Real *x, Real *b, int n) {
+void backsolve(const Real *L, Real *x, const Real *b, const int n) {
   int i, k;
   Real sum;
   for (i = 0; i < n; i++) {

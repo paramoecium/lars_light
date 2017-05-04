@@ -12,7 +12,7 @@
 #include <cmath>
 #include <valarray>
 
-#include "dense_cholesky.h"
+#include "cholesky.h"
 
 using namespace std;
 typedef float Real;
@@ -31,7 +31,7 @@ struct Lars {
   Real *c_; // correlation of columns of X with current residual
   Real *w_;          // step direction ( w_.size() == # active )
   Real *a_;   // correlation of columns of X with current step dir
-  DenseCholesky chol_;   // keeps track of cholesky
+  Real *L;  // lower triangular matrix of the gram matrix of X_A
 
   // temporaries
   Real *temp_;      // temporary storage for active correlations
@@ -57,7 +57,7 @@ struct Lars {
 
   // constructor accepts a LarsDenseData object
   Lars(DenseLarsData *data):
-    data_(data), chol_(min(data->nrows(), data->ncols())) {
+    data_(data) {
     // initially all pareameters are 0, current residual = y
     // LILY: p is private???
     active_ = (int*) malloc(data_->p * sizeof(int));
@@ -68,6 +68,7 @@ struct Lars {
     c_ = (Real*) calloc(nvars * sizeof(Real));
     w_ = (Real*) calloc(nvars * sizeof(Real));
     a_ = (Real*) calloc(nvars * sizeof(Real));
+    L = (Real *) malloc(nvars * nvars * sizeof(Real));
 
     stopcond = 0;
     k = 0;
@@ -132,8 +133,13 @@ struct Lars {
       for (int f = 0; f <= vars; ++f) {
         temp_[f] = data_->col_dot_product(j, beta_[f].first);
       }
-      chol_.addRowCol(temp_ + 0); // when vars==0, temp_ should be all zeros
+      /// addRowCol, when vars==0, temp_ should be all zeros
       vars++;
+      for (int i = 0; i < vars; ++i) {
+        L[(vars - 1) * size + i] = temp_[i];
+      }
+      update_cholesky(L, vars, (vars - 1));
+
       // fprintf(fid, "vars %d\n", vars);
     }
 
@@ -150,7 +156,8 @@ struct Lars {
     //fprintf(fid, "sign(c_[A]):");
     //print(w_);
     // w_ = R\(R'\s)
-    chol_.solve(w_, w_);
+    backsolve(L, w_, w_, vars);
+
     //fprintf(fid, "w_:");
     //print(w_);
 
@@ -243,7 +250,7 @@ void Lars::getParameters(beat_pair *p, const beta_pair *b) {
     temp2[i] = temp[b[i].first];
   }
 
-  chol_.solve(temp2, temp2);
+  backsolve(L, temp2, temp2, vars);
 
   for (int i = 0; i < vars; ++i) {
     p[i].first = b[i].first;
