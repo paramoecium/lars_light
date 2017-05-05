@@ -51,7 +51,7 @@ const Real EPSILON = 1e-9;
 
 // Updates the cholesky (L) after having added data to row (j)
 // assume L = nxn matrix
-void update_cholesky(Real* L, const int n, int j) {
+inline void update_cholesky(Real* L, const int n, int j) {
   Real sum = 0.0;
   real eps_small = EPSILON;
   int i, k;
@@ -76,7 +76,7 @@ void update_cholesky(Real* L, const int n, int j) {
 // Solves for x in Lx=b
 // x can be b
 // => Assume L is nxn, x and b is vector of length n
-void backsolve(const Real *L, Real *x, const Real *b, const int n) {
+inline void backsolve(const Real *L, Real *x, const Real *b, const int n) {
   int i, k;
   Real sum;
   for (i = 0; i < n; i++) {

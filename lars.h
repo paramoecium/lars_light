@@ -66,7 +66,7 @@ struct Lars {
     nvars = min(data_->N - 1, data_->p);
     beta_ = (beta_pair*) malloc(nvars * sizeof(beta_pair));
     c_ = (Real*) calloc(nvars * sizeof(Real));
-    w_ = (Real*) calloc(nvars * sizeof(Real));
+    w_ = (Real*) malloc(nvars * sizeof(Real));
     a_ = (Real*) calloc(nvars * sizeof(Real));
     L = (Real *) malloc(nvars * nvars * sizeof(Real));
 
@@ -103,7 +103,7 @@ struct Lars {
         j = i;
         C = fabs(c_[i]);
       }
-      }
+    }
     #ifdef DEBUG_PRINT
     fprintf(fid, "[C,j] = [%12.5f, %12d]\n", C, j+1 );
     #endif
@@ -161,7 +161,7 @@ struct Lars {
     //fprintf(fid, "w_:");
     //print(w_);
 
-    // AA = 1/sqrt(dot(GA1,s));
+    // AA = 1/sqrt(dot(GA.INV,s));
     for (int i = 0; i < vars; ++i) {
       AA += w_[i] * sign(c_[beta_[i].first]);
     }
