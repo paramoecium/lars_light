@@ -1,264 +1,192 @@
-#ifndef LARS__H
-#define LARS__H
-
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
-#include <fstream>
-#include <iterator>
-#include <numeric>
+#include <cmath>
 #include <algorithm>
 #include <cassert>
-#include <cmath>
-#include <valarray>
 
+#include "util.h"
+#include "mathOperations.h"
 #include "cholesky.h"
 
-using namespace std;
-typedef float Real;
-
-struct Idx {
-  int id;
-  Real v;
-}
+#ifndef LARS_H
+#define LARS_H
 
 struct Lars {
-  DenseLarsData *data_; // data(contains X and y)
-  beta_pair *beta_;   // current parameters(solution) [Not Sorted]
+  
+  int N, p;
+  int active_size, active_itr;
 
-  // incrementally updated quantities
-  int *active_; // active[i] = position in beta of active param or -1
-  Real *c_; // correlation of columns of X with current residual
-  Real *w_;          // step direction ( w_.size() == # active )
-  Real *a_;   // correlation of columns of X with current step dir
-  Real *L;  // lower triangular matrix of the gram matrix of X_A
+  const Real *Xt; //a Nxp matrix, transpose of X;
+  const Real *y; //a 1xp vector
+  Idx *beta; // current parameters(solution) [Not sorted] a 1xp vector
 
-  // temporaries
-  Real *temp_;      // temporary storage for active correlations
+  int *active; // active[i] = position in beta of active param or -1
+  Real *c; // 
+  Real *w; // sign c[active_set]
+  Real *a; // store Xt * u
+  Real *L; // lower triangular matrix of the gram matrix of X_A (pxp)
 
-  /** New Variable to exactly replicate matlab lars */
-  bool stopcond;
-  int vars;
-  int nvars;
-  int k;
-  FILE* fid;
+  Real *tmp; // temporary storage for active correlations
+
+  FILE *fid;
 
 
-  inline Real sign(Real tmp) {
-    if (tmp > 0) return 1.0;
-    if (tmp < 0) return -1.0;
-    return 0;
-  }
+  void getParameters(Idx **beta_out) const; // get current beta
 
-  // get the current parameters
-  const Idx* getParameter();
-  // get least squares parameters for active set
-  const void getParameters(Idx* p, const Idx* b);
+  Lars(const Real *Xt_in, const Real *y_in, int p_in, int N_in);
 
-  // constructor accepts a LarsDenseData object
-  Lars(DenseLarsData *data):
-    data_(data) {
-    // initially all pareameters are 0, current residual = y
-    // LILY: p is private???
-    active_ = (int*) malloc(data_->p * sizeof(int));
-    c_ = (Real*) calloc(data_->p * sizeof(Real));
-    memset(active_, -1, sizeof(active_));
-    nvars = min(data_->N - 1, data_->p);
-    beta_ = (beta_pair*) malloc(nvars * sizeof(beta_pair));
-    c_ = (Real*) calloc(nvars * sizeof(Real));
-    w_ = (Real*) malloc(nvars * sizeof(Real));
-    a_ = (Real*) calloc(nvars * sizeof(Real));
-    L = (Real *) malloc(nvars * nvars * sizeof(Real));
+  ~Lars();
 
-    stopcond = 0;
-    k = 0;
-    vars = 0;
-    //fid = fopen("vlarspp_debug.txt","w");
-    fid = stderr;
-    data_->getXtY(c_);
-    // step dir = 0 so a_ = 0
-    temp_ = (Real*) calloc(nvars * sizeof(Real));
-  }
-
-  ~Lars() {
-    #ifdef DEBUG_PRINT
-    fprintf(fid, "Lars() DONE\n");
-    #endif
-  }
-
-  // Perform a single iteration of the LARS loop
-  bool iterate() {
-    if (vars >= nvars) return false;
-    k++;
-    #ifdef DEBUG_PRINT
-    fprintf(fid, "K: %12d\n", k);
-    fprintf(fid, "%12d %12d\n", vars, nvars);
-    #endif
-
-    Real C = 0.0;
-    int j;
-    for (int i = 0; i < data_->p; ++i) {
-      if (active_[i] != -1) continue;
-      if (fabs(c_[i]) > C) {
-        j = i;
-        C = fabs(c_[i]);
-      }
-    }
-    #ifdef DEBUG_PRINT
-    fprintf(fid, "[C,j] = [%12.5f, %12d]\n", C, j+1 );
-    #endif
-    #ifdef DEBUG_PRINT
-    fprintf(fid, "activating %d\n", j+1 );
-    #endif
-
-    /**
-     *  activate parameter j and updates cholesky
-     * ------------------
-     * Update state so that feature j is active with weight 0
-     *  if it is not already active.
-     *
-     * R = cholinsert(R,X(:,j),X(:,A));
-     * A = [A j];
-     * I(I == j) = [];
-     * vars = vars + 1;
-     *
-     **/
-    //fprintf(fid, "activate(%d)\n", j );
-    if ((active_[j] != -1) || vars >= data_->p) {
-      fprintf(fid, "blash\n");
-    } else {
-      active_[j] = vars;
-      beta_[vars](beta_pair(j, 0.0));
-
-      for (int f = 0; f <= vars; ++f) {
-        temp_[f] = data_->col_dot_product(j, beta_[f].first);
-      }
-      /// addRowCol, when vars==0, temp_ should be all zeros
-      vars++;
-      for (int i = 0; i < vars; ++i) {
-        L[(vars - 1) * size + i] = temp_[i];
-      }
-      update_cholesky(L, vars, (vars - 1));
-
-      // fprintf(fid, "vars %d\n", vars);
-    }
-
-    /**
-     * computes w, AA, and X'w
-     * -----------------------------
-     * Solves for the step in parameter space given the current active parameters.
-     **/
-    Real AA = 0.0;
-    // set w_ = sign(c_[A])
-    for (int i = 0; i < vars; ++i) {
-      w_[i] = sign(c_[beta_[i].first]);
-    }
-    //fprintf(fid, "sign(c_[A]):");
-    //print(w_);
-    // w_ = R\(R'\s)
-    backsolve(L, w_, w_, vars);
-
-    //fprintf(fid, "w_:");
-    //print(w_);
-
-    // AA = 1/sqrt(dot(GA.INV,s));
-    for (int i = 0; i < vars; ++i) {
-      AA += w_[i] * sign(c_[beta_[i].first]);
-    }
-    AA = 1.0 / sqrt(AA);
-    //fprintf(fid, "AA: %12.5f\n", AA);
-    for (int i = 0; i < vars; ++i) {
-      w_[i] *= AA;
-    }
-
-    // calculate the a (uses beta to get active indices )
-    // a_ = X'Xw
-    data_->compute_direction_correlation(beta_, nvars, w_, nvars, a_ + 0);
-
-    #ifdef DEBUG_PRINT
-    fprintf(fid, "W:");
-    //print(w_);
-    fprintf(fid, "AA: %12.5f\n", AA);
-    #endif
-
-    Real gamma;
-    if (vars == nvars) {
-      gamma = C / AA;
-      #ifdef DEBUG_PRINT
-      fprintf(fid, "gamma: %12.5f\n", gamma);
-      #endif
-    } else {
-
-      //fprintf(fid, "a:");
-      //print(a_);
-      gamma = C / AA;
-      int min_index = -1;
-      // temp = [(C - c(I))./(AA - a(I)); (C + c(I))./(AA + a(I))];
-      // gamma = min([temp(temp > 0); C/AA]);
-      for (int j = 0; j < vars; ++j) {
-        // only consider inactive features
-        if (active_[j] != -1) continue;
-        Real t1 = (C - c_[j])/(AA - a_[j]);
-        Real t2 = (C + c_[j])/(AA + a_[j]);
-        // consider only positive items
-        if (t1 > 0 && t1 < gamma) {
-          gamma = t1;
-          min_index = j;
-        }
-        if (t2 > 0 && t2 < gamma) {
-          gamma = t2;
-          min_index = j;
-        }
-      }
-
-      #ifdef DEBUG_PRINT
-      fprintf(fid, "min_index: %12d\n", min_index+1);
-      fprintf(fid, "gamma: %12.5f\n", gamma);
-      #endif
-    }
-
-    // add lambda * w to beta
-    for(int i = 0; i < vars; ++i)
-      beta_[i].second += gamma * w_[i];
-
-    // update correlation with a
-    for(int i = 0; i < vars; ++i)
-      c_[i] -= gamma * a_[i];
-
-    // print the beta
-    #ifdef DEBUG_PRINT
-    fprintf(fid, "beta: ");
-    for (int i = 0; i < vars; ++i) {
-      fprintf(fid, "%12.5f", beta_[i].second );
-    }
-    fprintf(fid, "\n");
-    #endif
-
-    return true;
-  }
+  bool iterate();
 };
 
+Lars::Lars(const Real *Xt_in, const Real *y_in, int p_in, int N_in): 
+    Xt(Xt_in), y(y_in), p(p_in), N(N_in){
+  
+  beta = (Idx*) calloc(p, sizeof(Idx));
 
-/** Return the Least-squares solution to X*beta = y for the subset
- * of currently active beta parameters */
-void Lars::getParameters(beat_pair *p, const beta_pair *b) {
-  Real *temp = (Real*) calloc(vars * sizeof(Real));
-  Real *temp2 = (Real*) calloc(vars * sizeof(Real));
+  // Initializing
+  active_size = fmin(N-1, p);
+  active_itr = 0;
+  active = (int*) malloc(active_size * sizeof(int));
+  memset(active, -1, active_size * sizeof(int));
+  c = (Real*) calloc(active_size, sizeof(Real));
+  w = (Real*) calloc(active_size, sizeof(Real));
+  a = (Real*) calloc(active_size, sizeof(Real));
+  L = (Real*) calloc(active_size, active_size * sizeof(Real));
+  tmp = (Real*) calloc(N, sizeof(Real));
 
-  data_->getXtY(temp);
-  for (int i = 0; i < vars; ++i) {
-    temp2[i] = temp[b[i].first];
+  mvm(Xt, false, y, c, p, N);
+
+  fid = stderr;
+}
+
+Lars::~Lars() {
+  fprintf(fid, "Lars() DONE\n");
+}
+
+bool Lars::iterate() {
+  printf("_------------------\n");
+  if (active_itr >= active_size) return false;
+  
+  Real C = 0.0;
+  int cur = -1;
+  for (int i = 0; i < p; ++i) {
+    printf("c[%d]=%.3f\n", i, c[i]);
+    if (active[i] != -1) continue;
+    if (fabs(c[i]) > C) {
+      cur = i;
+      C = fabs(c[i]);
+    }
+  }
+  // All remainging C are 0
+  if (cur == -1) return false;
+
+  fprintf(fid, "Active set size is now %d\n", active_itr + 1);
+  fprintf(fid, "Activate %d column with %.3f value\n", cur, C);
+
+  printf("%d %d %d %d\n", active[cur], cur, active_itr, p);
+  assert(active[cur] == -1 and active_itr < p);
+
+  active[cur] = active_itr;
+  beta[active_itr] = Idx(cur, 0);
+
+  // calculate Xt_A * Xcur, Matrix * vector
+  // new active row to add to gram matrix of active set
+  printf("active itr%d\n", active_itr);
+  for (int i = 0; i <= active_itr; ++i) {
+    tmp[i] = dot(Xt + cur * N, Xt + beta[i].id * N, N); 
+    printf("dot %d %d cols\n", cur, beta[i].id);
+  }
+  // L[active_itr][] = tmp[];
+  for (int i = 0; i <= active_itr; ++i) {
+    L[active_itr*p + i] = tmp[i];
+  }
+  update_cholesky(L, active_itr+1, active_itr);
+  printf("L\n");
+  for (int i = 0; i <= active_itr; ++i) {
+    for (int j = 0; j <= active_itr; ++j) {
+      printf("%.3f  ", L[i * (active_itr + 1) + j]);
+    }
+    printf("\n");
+  }
+  printf("\n");
+
+  // set w[] = sign(c[])
+  for (int i = 0; i <= active_itr; ++i) {
+    w[i] = sign(c[beta[i].id]);
+  }
+  // w = R\(R'\s)
+  // w is now storing sum of all rows? in the inverse of G_A
+  backsolve(L, w, w, active_itr+1);
+
+  // AA is is used to finalize w[]
+  // AA = 1 / sqrt(sum of all entries in the inverse of G_A);
+  Real AA = 0.0;
+  for (int i = 0; i <= active_itr; ++i) {
+    printf("%d w[i]%.3f beta[i]%.3f\n", i, w[i], c[beta[i].id]); 
+    AA += w[i] * sign(c[beta[i].id]);
+  }
+  AA = 1.0 / sqrt(AA);
+  fprintf(fid, "AA: %.3f\n", AA);
+
+  // get the actual w[]
+  for (int i = 0; i <= active_itr; ++i) {
+    w[i] *= AA;
   }
 
-  backsolve(L, temp2, temp2, vars);
-
-  for (int i = 0; i < vars; ++i) {
-    p[i].first = b[i].first;
-    p[i].second = temp2[i];
+  // get a = X' X_a w
+  // Now do X' (X_a w)
+  // can store a X' X_a that update only some spaces when adding new col to
+  // activation set
+  // Will X'(X_a w) be better? // more 
+  // X' (X_a w) more flops less space?
+  // (X' X_a) w less flops more space?
+  memset(tmp, 0, N*sizeof(Real));
+  memset(a, 0, active_size*sizeof(Real));
+  // tmp = X_a * w
+  for (int i = 0; i <= active_itr; ++i) {
+    daxpy(1.0, &Xt[beta[i].id * N], tmp, N);
   }
+  // a = X' * tmp
+  mvm(Xt, false,tmp, a, p, N); 
 
-  free(temp);
-  free(temp2);
+  printf("a : ");
+  for (int i = 0; i < p; i++) printf("%.3f ", a[i]);
+  printf("\n");
+
+  Real gamma = C / AA;
+  if (active_itr < active_size) {
+    for (int i = 0; i <= active_itr; i++) {
+      int j = beta[i].id;
+      Real t1 = (C - c[j]) / (AA - a[j]);
+      Real t2 = (C + c[j]) / (AA + a[j]);
+
+      if (t1 > 0 and t1 < gamma) gamma = t1;
+      if (t2 > 0 and t2 < gamma) gamma = t2;
+    }
+  }
+  fprintf(fid, "gamma = %.3f\n", gamma);
+
+  // add lambda * w to beta
+  for (int i = 0; i <= active_itr; ++i)
+    beta[i].v += gamma * w[i];
+
+  // update correlation with a
+  for (int i = 0; i <= active_itr; ++i)
+    c[i] -= gamma * a[i];
+
+  fprintf(fid, "beta: ");
+  for (int i = 0; i <= active_itr; ++i) fprintf(fid, "%d %.3f ", beta[i].id, beta[i].v);
+  fprintf(fid, "\n");
+
+  active_itr++;
+  return true;
+}
+
+
+void Lars::getParameters(Idx** beta_out) const {
+  *beta_out = beta; 
 }
 
 #endif

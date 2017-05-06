@@ -42,7 +42,8 @@
 #include <cstdio>
 #include <cmath>
 
-typedef float Real;
+#include "util.h"
+
 const Real EPSILON = 1e-9;
 
 /////////////
@@ -53,7 +54,7 @@ const Real EPSILON = 1e-9;
 // assume L = nxn matrix
 inline void update_cholesky(Real* L, const int n, int j) {
   Real sum = 0.0;
-  real eps_small = EPSILON;
+  Real eps_small = EPSILON;
   int i, k;
   for (i = 0; i < j; ++i) {
     sum = L[j * n + i];
@@ -82,15 +83,15 @@ inline void backsolve(const Real *L, Real *x, const Real *b, const int n) {
   for (i = 0; i < n; i++) {
     for (sum = b[i], k = i-1; k >= 0; k--) {
       sum -= L[i * n + k] * x[k];
-      x[i] = sum / L[i * n + k];
     }
+    x[i] = sum / L[i * n + i];
   }
 
   for (i = n-1; i>= 0; i--) {
     for (sum = x[i], k = i+1; k < n; k++) {
       sum -= L[k * n + i] * x[k];
-      x[i] = sum / L[i * n + i];
     }
+    x[i] = sum / L[i * n + i];
   }
 }
 
