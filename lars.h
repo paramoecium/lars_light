@@ -18,7 +18,8 @@ struct Lars {
 
   const Real *Xt; //a Nxp matrix, transpose of X;
   const Real *y; //a 1xp vector
-  Idx *mu; // current parameters(solution) [Not sorted] a 1xp vector
+  Idx *mu; // current mu [Not sorted] a 1xp vector
+  Idx *beta, *beta_old;
 
   int *active; // active[i] = position in mu of active param or -1
   Real *c; // 
@@ -26,24 +27,32 @@ struct Lars {
   Real *a; // store Xt * u
   Real *L; // lower triangular matrix of the gram matrix of X_A (pxp)
 
+  Real lambda, lambda_new, lambda_old;
+
   Real *tmp; // temporary storage for active correlations
 
   FILE *fid;
 
 
-  void getParameters(Idx *beta) const; // get current beta
-
-  Lars(const Real *Xt_in, const Real *y_in, int p_in, int N_in);
+  Lars(const Real *Xt_in, const Real *y_in, int p_in, int N_in, Real lambda_in);
 
   ~Lars();
 
+  void solve();
+
   bool iterate();
+
+  void calculateParameters();
+
+  void getParameters(Idx** beta_out) const; // get final beta
 };
 
-Lars::Lars(const Real *Xt_in, const Real *y_in, int p_in, int N_in): 
-    Xt(Xt_in), y(y_in), p(p_in), N(N_in){
+Lars::Lars(const Real *Xt_in, const Real *y_in, int p_in, int N_in, Real lambda_in): 
+    Xt(Xt_in), y(y_in), p(p_in), N(N_in), lambda(lambda_in) {
   
   mu = (Idx*) calloc(p, sizeof(Idx));
+  beta = (Idx*) calloc(p, sizeof(Idx));
+  beta_old = (Idx*) calloc(p, sizeof(Idx));
 
   // Initializing
   active_size = fmin(N, p);
@@ -156,17 +165,18 @@ bool Lars::iterate() {
   printf("\n");
 
   Real gamma = C / AA;
+  int gamma_id = -1;
   if (active_itr < active_size) {
     for (int i = 0; i <= active_itr; i++) {
       int j = mu[i].id;
       Real t1 = (C - c[j]) / (AA - a[j]);
       Real t2 = (C + c[j]) / (AA + a[j]);
 
-      if (t1 > 0 and t1 < gamma) gamma = t1;
-      if (t2 > 0 and t2 < gamma) gamma = t2;
+      if (t1 > 0 and t1 < gamma) gamma = t1, gamma_id=j;
+      if (t2 > 0 and t2 < gamma) gamma = t2, gamma_id=j;
     }
   }
-  fprintf(fid, "gamma = %.3f\n", gamma);
+  fprintf(fid, "gamma = %.3f from %d col\n", gamma, gamma_id);
 
   // add lambda * w to mu
   for (int i = 0; i <= active_itr; ++i)
@@ -184,8 +194,39 @@ bool Lars::iterate() {
   return true;
 }
 
+void Lars::solve() {
+  int itr = 0;
+  while (iterate()) {
+    // compute lambda_new
+    printf("=========== The %d Iteration ends ===========\n", itr);
 
-void Lars::getParameters(Idx* beta) const {
+    std::swap(beta, beta_old);
+    calculateParameters();
+    lambda_new = 0;
+    for (int i = 0; i < active_itr; i++)
+      lambda_new += fabs(beta[i].v);
+    printf("---------- lambda_new : %.3f lambda_old: %.3f lambda: %.3f\n", lambda_new, lambda_old, lambda);
+    for (int i = 0; i < active_itr; i++)
+      printf("%d : %.3f %.3f\n", beta[i].id, beta[i].v, beta_old[i].v);
+
+    if (lambda_new <= lambda) {
+      lambda_old = lambda_new;
+    } else {
+      Real factor = (lambda - lambda_old) / (lambda_new - lambda_old);
+      for (int j = 0; j < active_itr; j++) {
+//        beta[j].v = beta_old[j].v * (1.f - factor) + factor * beta[j].v;
+        beta[j].v = beta_old[j].v + factor * (beta[j].v - beta_old[j].v);
+      }
+      break;
+    }
+    itr++;
+  }
+  printf("LARS DONE\n");
+}
+
+
+void Lars::calculateParameters() {
+
   mvm(Xt, false, y, tmp, p, N);
 
   Real *tmp2 = (Real*) calloc(active_itr, sizeof(Real));
@@ -202,4 +243,9 @@ void Lars::getParameters(Idx* beta) const {
   free(tmp2);
 }
 
+void Lars::getParameters(Idx** beta_out) const {
+  *beta_out = beta;
+}
+
 #endif
+

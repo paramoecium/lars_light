@@ -10,6 +10,7 @@ int main() {
   Real *Xt;
   Real *y;
   Idx *beta;
+  Real lambda = 3;
 
   N = 3, p = 3;
   Xt = (Real*) malloc(N * p * sizeof(Real));
@@ -31,14 +32,11 @@ int main() {
   y[2] = 4;
 
 
-  Lars lars(Xt, y, p, N);
+  Lars lars(Xt, y, p, N, lambda);
 
-  for (int itr = 0; lars.iterate(); itr++) {
-    printf("=========== The %d Iteration ends ===========\n", itr);
-  }
-  printf("LARS DONE\n");
+  lars.solve();
 
-  lars.getParameters(beta);
+  lars.getParameters(&beta);
   printf("get parameters\n");
 
   for (int i = 0; i < p; i++)
