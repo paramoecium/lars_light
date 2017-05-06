@@ -1,3 +1,5 @@
+#include <cstdio>
+
 #include "mathOperations.h"
 
 /*
@@ -188,19 +190,18 @@ void amvm(Real a, const Real * M, bool trans, const Real * v, Real * w, int rows
 	trans indicates whether to use transpose of M
 */
 void mvm(const Real * M, bool trans, const Real * v, Real * w, int rows, int cols){
-	int i ,j;
   if (trans){
-    for(i = 0; i < cols; i++){
-      w[i] = 0;
-      for(j = 0; j < rows; j++){
-        w[i] += M[j * cols + i] * v[j] ;
+    for (int x = 0; x < cols; x++) {
+      w[x] = 0;
+      for (int y = 0; y < rows; y++) {
+        w[x] += M[y * cols + x] * v[y];
       }
     }
   } else {
-    for(i = 0; i < rows; i+=1){
-      w[i] = 0;
-      for(j = 0; j < cols; j++){
-        w[i] += M[i * cols + j] * v[j] ;
+    for (int y = 0; y < rows; y++) {
+      w[y] = 0;
+      for (int x = 0; x < cols; x++) {
+        w[y] += M[y * cols + x] * v[x];
       }
     }
   }
