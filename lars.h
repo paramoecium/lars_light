@@ -157,7 +157,7 @@ bool Lars::iterate() {
   memset(u, 0, active_size*sizeof(Real));
   // u = X_a * w
   for (int i = 0; i <= active_itr; ++i) {
-    axpy(w[i], &Xt[beta[i].id * N], u, p);
+    axpy(w[i], &Xt[beta[i].id * N], u, N);
   }
   // a = X' * tmp
   mvm(Xt, false, u, a, p, N);
