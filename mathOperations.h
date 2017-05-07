@@ -81,6 +81,6 @@ void mvm(const Real * M, bool trans, const Real * v, Real * w, int rows, int col
 // Output:
 // description
 // Used by:
-void daxpy(Real a, const Real * X, Real * Y, int size);
+void axpy(Real a, const Real * X, Real * Y, int size);
 
 #endif
