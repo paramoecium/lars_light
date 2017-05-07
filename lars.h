@@ -21,9 +21,9 @@ struct Lars {
   Idx *beta, *beta_old; // current beta and old beta solution [Not sorted]
 
   int *active; // active[i] = position beta of active param or -1
-  Real *c; // 
+  Real *c; //
   Real *w; // sign c[active_set]
-  Real *u; // unit direction of each iteration 
+  Real *u; // unit direction of each iteration
   Real *a; // store Xt * u
   Real *L; // lower triangular matrix of the gram matrix of X_A (pxp)
 
@@ -45,6 +45,8 @@ struct Lars {
 //  void calculateParameters();
 
   void getParameters(Idx** beta_out) const; // get final beta
+
+  Real compute_lambda(); // compute lambda given beta
 };
 
 Lars::Lars(const Real *Xt_in, const Real *y_in, int D_in, int K_in, Real lambda_in): 
@@ -76,7 +78,7 @@ Lars::~Lars() {
 
 bool Lars::iterate() {
   if (active_itr > active_size) return false;
-  
+
   Real C = 0.0;
   int cur = -1;
   for (int i = 0; i < K; ++i) {
@@ -159,7 +161,7 @@ bool Lars::iterate() {
   // Now do X' (X_a w)
   // can store a X' X_a that update only some spaces when adding new col to
   // activation set
-  // Will X'(X_a w) be better? // more 
+  // Will X'(X_a w) be better? // more
   // X' (X_a w) more flops less space?
   // (X' X_a) w less flops more space?
   memset(a, 0, K*sizeof(Real));
@@ -195,7 +197,7 @@ bool Lars::iterate() {
   }
   print("gamma = %.3f from %d col\n", gamma, gamma_id);
 
-  // add gamma * w to beta 
+  // add gamma * w to beta
   for (int i = 0; i <= active_itr; ++i)
     beta[i].v += gamma * w[i];
 
@@ -218,18 +220,16 @@ void Lars::solve() {
     print("=========== The %d Iteration ends ===========\n", itr);
 
     //calculateParameters();
-    lambda_new = 0;
-    for (int i = 0; i < active_itr; i++)
-      lambda_new += fabs(beta[i].v);
+    lambda_new = compute_lambda();
     print("---------- lambda_new : %.3f lambda_old: %.3f lambda: %.3f\n", lambda_new, lambda_old, lambda);
     for (int i = 0; i < active_itr; i++)
       print("%d : %.3f %.3f\n", beta[i].id, beta[i].v, beta_old[i].v);
 
-    if (lambda_new <= lambda) {
+    if (lambda_new > lambda) {
       lambda_old = lambda_new;
       memcpy(beta_old, beta, active_itr * sizeof(Idx));
     } else {
-      Real factor = (lambda - lambda_old) / (lambda_new - lambda_old);
+      Real factor = (lambda_old - lambda) / (lambda_old - lambda_new);
       for (int j = 0; j < active_itr; j++) {
 //        beta[j].v = beta_old[j].v * (1.f - factor) + factor * beta[j].v;
         beta[j].v = beta_old[j].v + factor * (beta[j].v - beta_old[j].v);
@@ -267,5 +267,22 @@ void Lars::getParameters(Idx** beta_out) const {
   *beta_out = beta;
 }
 
-#endif
 
+// computes lambda given beta, lambda = max(abs(2*X'*(X*beta - y)))
+inline Real Lars::compute_lambda() {
+  // compute (y - X*beta)
+  memcpy(tmp, y, N * sizeof(Real));
+  for (int i = 0; i < active_itr; i++) {
+    for (int j = 0; j < N; j++)
+      tmp[j] -= Xt[beta[i].id * N + j] * beta[i].v;
+  }
+  // compute X'*(y - X*beta)
+  Real max_lambda = Real(0.0);
+  mvm(Xt, false, tmp, tmp, p, N);
+  for (int i = 0; i < p; ++i) {
+    max_lambda = fmax(max_lambda, fabs(dot(Xt + i * N, tmp, N)));
+  }
+  return max_lambda;
+}
+
+#endif

@@ -213,7 +213,7 @@ void mvm(const Real * M, bool trans, const Real * v, Real * w, int rows, int col
 	X is a vector of length size
 	Y is a vector of length size
 */
-void daxpy(Real a, const Real *X, Real *Y, int size){
+void axpy(Real a, const Real *X, Real *Y, int size){
 	int i;
 	for(i = 0; i < size; i++){
 		Y[i] = a*X[i] + Y[i];
