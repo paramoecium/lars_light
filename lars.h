@@ -18,12 +18,12 @@ struct Lars {
 
   const Real *Xt; //a Nxp matrix, transpose of X;
   const Real *y; //a 1xp vector
-  Idx *mu; // current mu [Not sorted] a 1xp vector
-  Idx *beta, *beta_old;
+  Idx *beta, *beta_old; // current beta and old beta solution [Not sorted]
 
-  int *active; // active[i] = position in mu of active param or -1
+  int *active; // active[i] = position beta of active param or -1
   Real *c; // 
   Real *w; // sign c[active_set]
+  Real *u; // unit direction of each iteration 
   Real *a; // store Xt * u
   Real *L; // lower triangular matrix of the gram matrix of X_A (pxp)
 
@@ -50,7 +50,6 @@ struct Lars {
 Lars::Lars(const Real *Xt_in, const Real *y_in, int p_in, int N_in, Real lambda_in): 
     Xt(Xt_in), y(y_in), p(p_in), N(N_in), lambda(lambda_in) {
   
-  mu = (Idx*) calloc(p, sizeof(Idx));
   beta = (Idx*) calloc(p, sizeof(Idx));
   beta_old = (Idx*) calloc(p, sizeof(Idx));
 
@@ -61,8 +60,9 @@ Lars::Lars(const Real *Xt_in, const Real *y_in, int p_in, int N_in, Real lambda_
   memset(active, -1, active_size * sizeof(int));
   c = (Real*) calloc(active_size, sizeof(Real));
   w = (Real*) calloc(active_size, sizeof(Real));
+  u = (Real*) calloc(p, sizeof(Real));
   a = (Real*) calloc(active_size, sizeof(Real));
-  L = (Real*) calloc(active_size, active_size * sizeof(Real));
+  L = (Real*) calloc(active_size * active_size, sizeof(Real));
   tmp = (Real*) calloc(N, sizeof(Real));
 
   mvm(Xt, false, y, c, p, N);
@@ -97,23 +97,22 @@ bool Lars::iterate() {
   assert(active[cur] == -1 and active_itr < p);
 
   active[cur] = active_itr;
-  mu[active_itr] = Idx(cur, 0);
+  beta[active_itr] = Idx(cur, 0);
 
   // calculate Xt_A * Xcur, Matrix * vector
   // new active row to add to gram matrix of active set
   for (int i = 0; i <= active_itr; ++i) {
-    tmp[i] = dot(Xt + cur * N, Xt + mu[i].id * N, N); 
-    printf("dot %d %d cols\n", cur, mu[i].id);
+    tmp[i] = dot(Xt + cur * p, Xt + beta[i].id * p, N); 
   }
   // L[active_itr][] = tmp[];
   for (int i = 0; i <= active_itr; ++i) {
-    L[active_itr*p + i] = tmp[i];
+    L[active_itr*active_size + i] = tmp[i];
   }
-  update_cholesky(L, active_itr+1, active_itr);
+  update_cholesky(L, active_itr, active_itr+1, active_size);
   printf("L after cholesky\n");
   for (int i = 0; i <= active_itr; ++i) {
     for (int j = 0; j <= active_itr; ++j) {
-      printf("%.3f  ", L[i * (active_itr + 1) + j]);
+      printf("%.3f  ", L[i * active_size + j]);
     }
     printf("\n");
   }
@@ -121,18 +120,18 @@ bool Lars::iterate() {
 
   // set w[] = sign(c[])
   for (int i = 0; i <= active_itr; ++i) {
-    w[i] = sign(c[mu[i].id]);
+    w[i] = sign(c[beta[i].id]);
   }
 
   // w = R\(R'\s)
   // w is now storing sum of all rows? in the inverse of G_A
-  backsolve(L, w, w, active_itr+1);
+  backsolve(L, w, w, active_itr+1, active_size);
 
   // AA is is used to finalize w[]
   // AA = 1 / sqrt(sum of all entries in the inverse of G_A);
   Real AA = 0.0;
   for (int i = 0; i <= active_itr; ++i) {
-    AA += w[i] * sign(c[mu[i].id]);
+    AA += w[i] * sign(c[beta[i].id]);
   }
   AA = 1.0 / sqrt(AA);
   fprintf(fid, "AA: %.3f\n", AA);
@@ -142,7 +141,7 @@ bool Lars::iterate() {
     w[i] *= AA;
   }
   printf("w solved :");
-  for (int i = 0; i <= active_itr; ++i) printf("%.3f ", w[i]);
+  for (int i = 0; i < p; ++i) printf("%.3f ", w[i]);
   printf("\n");
 
   // get a = X' X_a w
@@ -153,41 +152,48 @@ bool Lars::iterate() {
   // X' (X_a w) more flops less space?
   // (X' X_a) w less flops more space?
   memset(a, 0, active_size*sizeof(Real));
-  // tmp = X_a * w
+  memset(u, 0, active_size*sizeof(Real));
+  // u = X_a * w
   for (int i = 0; i <= active_itr; ++i) {
-    daxpy(w[i], &Xt[mu[i].id * N], w, N);
+    daxpy(w[i], &Xt[beta[i].id * p], u, N);
   }
   // a = X' * tmp
-  mvm(Xt, false, w, a, p, N); 
+  mvm(Xt, false, u, a, p, N); 
+
+  printf("u : ");
+  for (int i = 0; i < p; i++) printf("%.3f ", u[i]);
+  printf("\n");
 
   printf("a : ");
   for (int i = 0; i < p; i++) printf("%.3f ", a[i]);
   printf("\n");
 
   Real gamma = C / AA;
-  int gamma_id = -1;
+  int gamma_id = cur;
   if (active_itr < active_size) {
-    for (int i = 0; i <= active_itr; i++) {
-      int j = mu[i].id;
-      Real t1 = (C - c[j]) / (AA - a[j]);
-      Real t2 = (C + c[j]) / (AA + a[j]);
+    printf("C=%.3f AA=%.3f\n", C, AA);
+    for (int i = 0; i < p; i++) {
+      if (active[i] != -1) continue;
+      Real t1 = (C - c[i]) / (AA - a[i]);
+      Real t2 = (C + c[i]) / (AA + a[i]);
+      printf("%d : t1 = %.3f, t2 = %.3f\n", i, t1, t2);
 
-      if (t1 > 0 and t1 < gamma) gamma = t1, gamma_id=j;
-      if (t2 > 0 and t2 < gamma) gamma = t2, gamma_id=j;
+      if (t1 > 0 and t1 < gamma) gamma = t1, gamma_id=i;
+      if (t2 > 0 and t2 < gamma) gamma = t2, gamma_id=i;
     }
   }
   fprintf(fid, "gamma = %.3f from %d col\n", gamma, gamma_id);
 
-  // add lambda * w to mu
+  // add gamma * w to beta 
   for (int i = 0; i <= active_itr; ++i)
-    mu[i].v += gamma * w[i];
+    beta[i].v += gamma * w[i];
 
   // update correlation with a
-  for (int i = 0; i <= active_itr; ++i)
+  for (int i = 0; i < p; ++i)
     c[i] -= gamma * a[i];
 
-  fprintf(fid, "mu: ");
-  for (int i = 0; i <= active_itr; ++i) fprintf(fid, "%d %.3f ", mu[i].id, mu[i].v);
+  fprintf(fid, "beta: ");
+  for (int i = 0; i <= active_itr; ++i) fprintf(fid, "%d %.3f ", beta[i].id, beta[i].v);
   fprintf(fid, "\n");
 
   active_itr++;
@@ -200,25 +206,25 @@ void Lars::solve() {
     // compute lambda_new
     printf("=========== The %d Iteration ends ===========\n", itr);
 
-    std::swap(beta, beta_old);
     calculateParameters();
-    lambda_new = 0;
-    for (int i = 0; i < active_itr; i++)
-      lambda_new += fabs(beta[i].v);
-    printf("---------- lambda_new : %.3f lambda_old: %.3f lambda: %.3f\n", lambda_new, lambda_old, lambda);
-    for (int i = 0; i < active_itr; i++)
-      printf("%d : %.3f %.3f\n", beta[i].id, beta[i].v, beta_old[i].v);
+    //lambda_new = 0;
+    //for (int i = 0; i < active_itr; i++)
+    //  lambda_new += fabs(beta[i].v);
+    //printf("---------- lambda_new : %.3f lambda_old: %.3f lambda: %.3f\n", lambda_new, lambda_old, lambda);
+    //for (int i = 0; i < active_itr; i++)
+    //  printf("%d : %.3f %.3f\n", beta[i].id, beta[i].v, beta_old[i].v);
 
-    if (lambda_new <= lambda) {
-      lambda_old = lambda_new;
-    } else {
-      Real factor = (lambda - lambda_old) / (lambda_new - lambda_old);
-      for (int j = 0; j < active_itr; j++) {
-//        beta[j].v = beta_old[j].v * (1.f - factor) + factor * beta[j].v;
-        beta[j].v = beta_old[j].v + factor * (beta[j].v - beta_old[j].v);
-      }
-      break;
-    }
+    //if (lambda_new <= lambda) {
+    //  lambda_old = lambda_new;
+    //  memcpy(beta_old, beta, active_itr * sizeof(Idx));
+    //} else {
+    //  Real factor = (lambda - lambda_old) / (lambda_new - lambda_old);
+    //  for (int j = 0; j < active_itr; j++) {
+//  //      beta[j].v = beta_old[j].v * (1.f - factor) + factor * beta[j].v;
+    //    beta[j].v = beta_old[j].v + factor * (beta[j].v - beta_old[j].v);
+    //  }
+    //  break;
+    //}
     itr++;
   }
   printf("LARS DONE\n");
@@ -226,21 +232,24 @@ void Lars::solve() {
 
 
 void Lars::calculateParameters() {
-
-  mvm(Xt, false, y, tmp, p, N);
-
-  Real *tmp2 = (Real*) calloc(active_itr, sizeof(Real));
-  for (int i = 0; i < active_itr; ++i) {
-    tmp2[i] = tmp[mu[i].id];
+  for (int i = 0; i < active_itr; i++) {
+    printf("beta[%d] = %.3f\n", beta[i].id, beta[i].v);
   }
-  backsolve(L, tmp2, tmp2, active_itr);
-
-  for (int i = 0; i < active_itr; ++i) {
-    beta[i].id = mu[i].id;
-    beta[i].v = tmp2[i];
-  }
-
-  free(tmp2);
+//
+//  mvm(Xt, false, y, tmp, p, N);
+//
+//  Real *tmp2 = (Real*) calloc(active_itr, sizeof(Real));
+//  for (int i = 0; i < active_itr; ++i) {
+//    tmp2[i] = tmp[beta[i].id];
+//  }
+//  backsolve(L, tmp2, tmp2, active_itr, active_size);
+//
+//  for (int i = 0; i < active_itr; ++i) {
+//    beta[i].id = beta[i].id;
+//    beta[i].v = tmp2[i];
+//  }
+//
+//  free(tmp2);
 }
 
 void Lars::getParameters(Idx** beta_out) const {

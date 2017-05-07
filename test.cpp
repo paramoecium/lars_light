@@ -10,7 +10,7 @@ int main() {
   Real *Xt;
   Real *y;
   Idx *beta;
-  Real lambda = 3;
+  Real lambda = 10;
 
   N = 3, p = 3;
   Xt = (Real*) malloc(N * p * sizeof(Real));
