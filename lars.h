@@ -58,8 +58,8 @@ Lars::Lars(const Real *Xt_in, const Real *y_in, int D_in, int K_in, Real lambda_
   // Initializing
   active_size = fmin(K, D);
   active_itr = 0;
-  active = (int*) malloc(active_size * sizeof(int));
-  memset(active, -1, active_size * sizeof(int));
+  active = (int*) malloc(K * sizeof(int));
+  memset(active, -1, K * sizeof(int));
   c = (Real*) calloc(K, sizeof(Real));
   w = (Real*) calloc(active_size, sizeof(Real));
   u = (Real*) calloc(D, sizeof(Real));
@@ -73,7 +73,7 @@ Lars::Lars(const Real *Xt_in, const Real *y_in, int D_in, int K_in, Real lambda_
 }
 
 Lars::~Lars() {
-  print("Lars() DONE\n");
+  printf("Lars() DONE\n");
 }
 
 bool Lars::iterate() {
@@ -82,7 +82,7 @@ bool Lars::iterate() {
   Real C = 0.0;
   int cur = -1;
   for (int i = 0; i < K; ++i) {
-    print("c[%d]=%.3f active[i]=%d\n", i, c[i], active[i]);
+    printf("c[%d]=%.3f active[i]=%d\n", i, c[i], active[i]);
     if (active[i] != -1) continue;
     if (fabs(c[i]) > C) {
       cur = i;
@@ -92,10 +92,10 @@ bool Lars::iterate() {
   // All remainging C are 0
   if (cur == -1) return false;
 
-  print("Active set size is now %d\n", active_itr + 1);
-  print("Activate %d column with %.3f value\n", cur, C);
+  printf("Active set size is now %d\n", active_itr + 1);
+  printf("Activate %d column with %.3f value\n", cur, C);
 
-  print("active[%d]=%d cur=%d D=%d\n", active_itr, active[cur], cur, D);
+  printf("active[%d]=%d cur=%d D=%d\n", active_itr, active[cur], cur, D);
   assert(active[cur] == -1 and active_itr < D);
 
   active[cur] = active_itr;
@@ -111,25 +111,25 @@ bool Lars::iterate() {
     L[active_itr*active_size + i] = tmp[i];
   }
 
-  print("L before cholesky\n");
+  printf("L before cholesky\n");
   for (int i = 0; i <= active_itr; ++i) {
     for (int j = 0; j <= active_itr; ++j) {
-      print("%.3f  ", L[i * active_size + j]);
+      printf("%.3f  ", L[i * active_size + j]);
     }
-    print("\n");
+    printf("\n");
   }
-  print("\n");
+  printf("\n");
 
   update_cholesky(L, active_itr, active_itr+1, active_size);
 
-  print("L after cholesky\n");
+  printf("L after cholesky\n");
   for (int i = 0; i <= active_itr; ++i) {
     for (int j = 0; j <= active_itr; ++j) {
-      print("%.3f  ", L[i * active_size + j]);
+      printf("%.3f  ", L[i * active_size + j]);
     }
-    print("\n");
+    printf("\n");
   }
-  print("\n");
+  printf("\n");
 
   // set w[] = sign(c[])
   for (int i = 0; i <= active_itr; ++i) {
@@ -147,15 +147,15 @@ bool Lars::iterate() {
     AA += w[i] * sign(c[beta[i].id]);
   }
   AA = 1.0 / sqrt(AA);
-  print("AA: %.3f\n", AA);
+  printf("AA: %.3f\n", AA);
 
   // get the actual w[]
   for (int i = 0; i <= active_itr; ++i) {
     w[i] *= AA;
   }
-  print("w solved :");
-  for (int i = 0; i < D; ++i) print("%.3f ", w[i]);
-  print("\n");
+  printf("w solved :");
+  for (int i = 0; i < D; ++i) printf("%.3f ", w[i]);
+  printf("\n");
 
   // get a = X' X_a w
   // Now do X' (X_a w)
@@ -168,34 +168,34 @@ bool Lars::iterate() {
   memset(u, 0, D*sizeof(Real));
   // u = X_a * w
   for (int i = 0; i <= active_itr; ++i) {
-    daxpy(w[i], &Xt[beta[i].id * D], u, D);
+    axpy(w[i], &Xt[beta[i].id * D], u, D);
   }
   // a = X' * tmp
   mvm(Xt, false, u, a, K, D); 
 
-  print("u : ");
-  for (int i = 0; i < D; i++) print("%.3f ", u[i]);
-  print("\n");
+  printf("u : ");
+  for (int i = 0; i < D; i++) printf("%.3f ", u[i]);
+  printf("\n");
 
-  print("a : ");
-  for (int i = 0; i < K; i++) print("%.3f ", a[i]);
-  print("\n");
+  printf("a : ");
+  for (int i = 0; i < K; i++) printf("%.3f ", a[i]);
+  printf("\n");
 
   Real gamma = C / AA;
   int gamma_id = cur;
   if (active_itr < active_size) {
-    print("C=%.3f AA=%.3f\n", C, AA);
+    printf("C=%.3f AA=%.3f\n", C, AA);
     for (int i = 0; i < K; i++) {
       if (active[i] != -1) continue;
       Real t1 = (C - c[i]) / (AA - a[i]);
       Real t2 = (C + c[i]) / (AA + a[i]);
-      print("%d : t1 = %.3f, t2 = %.3f\n", i, t1, t2);
+      printf("%d : t1 = %.3f, t2 = %.3f\n", i, t1, t2);
 
       if (t1 > 0 and t1 < gamma) gamma = t1, gamma_id=i;
       if (t2 > 0 and t2 < gamma) gamma = t2, gamma_id=i;
     }
   }
-  print("gamma = %.3f from %d col\n", gamma, gamma_id);
+  printf("gamma = %.3f from %d col\n", gamma, gamma_id);
 
   // add gamma * w to beta
   for (int i = 0; i <= active_itr; ++i)
@@ -205,9 +205,9 @@ bool Lars::iterate() {
   for (int i = 0; i < K; ++i)
     c[i] -= gamma * a[i];
 
-  print("beta: ");
-  for (int i = 0; i <= active_itr; ++i) print("%d %.3f ", beta[i].id, beta[i].v);
-  print("\n");
+  printf("beta: ");
+  for (int i = 0; i <= active_itr; ++i) printf("%d %.3f ", beta[i].id, beta[i].v);
+  printf("\n");
 
   active_itr++;
   return true;
@@ -217,13 +217,13 @@ void Lars::solve() {
   int itr = 0;
   while (iterate()) {
     // compute lambda_new
-    print("=========== The %d Iteration ends ===========\n", itr);
+    printf("=========== The %d Iteration ends ===========\n", itr);
 
     //calculateParameters();
     lambda_new = compute_lambda();
-    print("---------- lambda_new : %.3f lambda_old: %.3f lambda: %.3f\n", lambda_new, lambda_old, lambda);
+    printf("---------- lambda_new : %.3f lambda_old: %.3f lambda: %.3f\n", lambda_new, lambda_old, lambda);
     for (int i = 0; i < active_itr; i++)
-      print("%d : %.3f %.3f\n", beta[i].id, beta[i].v, beta_old[i].v);
+      printf("%d : %.3f %.3f\n", beta[i].id, beta[i].v, beta_old[i].v);
 
     if (lambda_new > lambda) {
       lambda_old = lambda_new;
@@ -238,13 +238,13 @@ void Lars::solve() {
     }
     itr++;
   }
-  print("LARS DONE\n");
+  printf("LARS DONE\n");
 }
 
 
 //void Lars::calculateParameters() {
 //  for (int i = 0; i < active_itr; i++) {
-//    print("beta[%d] = %.3f\n", beta[i].id, beta[i].v);
+//    printf("beta[%d] = %.3f\n", beta[i].id, beta[i].v);
 //  }
 //
 //  mvm(Xt, false, y, tmp, D, K);
@@ -271,18 +271,18 @@ void Lars::getParameters(Idx** beta_out) const {
 // computes lambda given beta, lambda = max(abs(2*X'*(X*beta - y)))
 inline Real Lars::compute_lambda() {
   // compute (y - X*beta)
-  memcpy(tmp, y, N * sizeof(Real));
-  for (int i = 0; i < active_itr; i++) {
-    for (int j = 0; j < N; j++)
-      tmp[j] -= Xt[beta[i].id * N + j] * beta[i].v;
-  }
-  // compute X'*(y - X*beta)
-  Real max_lambda = Real(0.0);
-  mvm(Xt, false, tmp, tmp, p, N);
-  for (int i = 0; i < p; ++i) {
-    max_lambda = fmax(max_lambda, fabs(dot(Xt + i * N, tmp, N)));
-  }
-  return max_lambda;
+//  memcpy(tmp, y, N * sizeof(Real));
+//  for (int i = 0; i < active_itr; i++) {
+//    for (int j = 0; j < N; j++)
+//      tmp[j] -= Xt[beta[i].id * N + j] * beta[i].v;
+//  }
+//  // compute X'*(y - X*beta)
+//  Real max_lambda = Real(0.0);
+//  mvm(Xt, false, tmp, tmp, p, N);
+//  for (int i = 0; i < p; ++i) {
+//    max_lambda = fmax(max_lambda, fabs(dot(Xt + i * N, tmp, N)));
+//  }
+//  return max_lambda;
 }
 
 #endif
