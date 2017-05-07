@@ -25,7 +25,7 @@ const bool DEBUG = true;
 inline void print(const char *format, ...) {
   va_list arg;
 
-  char buf[100];
+  char buf[1000];
   if (DEBUG) {
     va_start(arg, format);
     vsnprintf(buf, sizeof(buf), format, arg);
@@ -46,23 +46,23 @@ inline T normalRand(T mean = T(0), T stdev = T(1)) {
 
 template <class T>
 inline void prepareData(const int D, const int K, const int r,
-			                  const bool norm, T *Xt, T *y) {
+			                  const bool normalize, T *Xt, T *y) {
   //Xt = T[D*K];
   //y = T[D*r];
   for (int j = 0, k = 0; j < K; j++) {
-    T s = T(0);
-    T s2 = T(0);
+    T sum = T(0);
+    T sum2 = T(0);
     for (int i=0;i<D;i++,k++) {
       T v = normalRand<T>();
       Xt[k] = v;
-      s += v;
-      s2 += v*v;
+      sum += v;
+      sum2 += v*v;
     }
-    if (norm) {
-      T std = sqrt(s2 - s*s/T(D));
+    if (normalize) {
+      T std = sqrt(sum2 - sum*sum/T(D));
       k -= D;
       for (int i=0;i<D;i++,k++) {
-         Xt[k] = (Xt[k] - s/T(D))/std;
+         Xt[k] = (Xt[k] - sum/T(D))/std;
       }
     }
   }
