@@ -6,39 +6,36 @@
 int main() {
 
   // Initailize data
-  int N, p;
+  int D, K;
   Real *Xt;
   Real *y;
   Idx *beta;
   Real lambda = 4.5;
 
-  N = 3, p = 3;
-  Xt = (Real*) malloc(N * p * sizeof(Real));
-  y = (Real*) malloc(N * sizeof(Real));
-  beta = (Idx*) malloc(p * sizeof(Idx));
+  D = 3, K = 3;
+  Xt = (Real*) malloc(D * K * sizeof(Real));
+  y = (Real*) malloc(D * sizeof(Real));
+  beta = (Idx*) malloc(K * sizeof(Idx));
 
-  Xt[0 * N + 0] = 1;
-  Xt[0 * N + 1] = 2;
-  Xt[0 * N + 2] = 1;
-  Xt[1 * N + 0] = 1;
-  Xt[1 * N + 1] = 1;
-  Xt[1 * N + 2] = 0;
-  Xt[2 * N + 0] = 1;
-  Xt[2 * N + 1] = 0;
-  Xt[2 * N + 2] = 1;
+  Xt[0 * D + 0] = 1;
+  Xt[0 * D + 1] = 2;
+  Xt[0 * D + 2] = 1;
+  Xt[1 * D + 0] = 1;
+  Xt[1 * D + 1] = 1;
+  Xt[1 * D + 2] = 0;
 
-  y[0] = 5;
-  y[1] = 2;
-  y[2] = 4;
+  y[0] = 2;
+  y[1] = 3;
+  y[2] = 1;
 
 
-  Lars lars(Xt, y, p, N, lambda);
+  Lars lars(Xt, y, D, K, lambda);
 
   lars.solve();
 
   lars.getParameters(&beta);
-  printf("get parameters\n");
+  printf("get Parameters\n");
 
-  for (int i = 0; i < p; i++)
+  for (int i = 0; i < K; i++)
     printf("%d : %.3f\n", beta[i].id, beta[i].v);
 }
