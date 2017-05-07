@@ -1,3 +1,5 @@
+#include <cstdarg>
+
 #ifndef UTIL_H
 #define UTIL_H
 
@@ -14,6 +16,14 @@ inline Real sign(Real tmp) {
   if (tmp > 0) return 1.0;
   if (tmp < 0) return -1.0;
   return 0;
+}
+
+
+const bool DEBUG = false;
+inline void print(const char *format, ...) {
+  va_list arg;
+  
+  if (DEBUG) printf(format, arg);
 }
 
 #endif
