@@ -221,10 +221,11 @@ void Lars::solve() {
 
     //calculateParameters();
     lambda_new = compute_lambda();
+    /*
     print("---------- lambda_new : %.3f lambda_old: %.3f lambda: %.3f\n", lambda_new, lambda_old, lambda);
     for (int i = 0; i < active_itr; i++)
       print("%d : %.3f %.3f\n", beta[i].id, beta[i].v, beta_old[i].v);
-
+    */
     if (lambda_new > lambda) {
       lambda_old = lambda_new;
       memcpy(beta_old, beta, active_itr * sizeof(Idx));
