@@ -12,7 +12,7 @@
 #define LARS_H
 
 struct Lars {
-  
+
   int K, D;
   int active_size, active_itr;
 
@@ -49,9 +49,9 @@ struct Lars {
   Real compute_lambda(); // compute lambda given beta
 };
 
-Lars::Lars(const Real *Xt_in, const Real *y_in, int D_in, int K_in, Real lambda_in): 
+Lars::Lars(const Real *Xt_in, const Real *y_in, int D_in, int K_in, Real lambda_in):
     Xt(Xt_in), y(y_in), D(D_in), K(K_in), lambda(lambda_in) {
-  
+
   beta = (Idx*) calloc(D, sizeof(Idx));
   beta_old = (Idx*) calloc(D, sizeof(Idx));
 
@@ -65,7 +65,7 @@ Lars::Lars(const Real *Xt_in, const Real *y_in, int D_in, int K_in, Real lambda_
   u = (Real*) calloc(D, sizeof(Real));
   a = (Real*) calloc(K, sizeof(Real));
   L = (Real*) calloc(active_size * active_size, sizeof(Real));
-  tmp = (Real*) calloc(K, sizeof(Real));
+  tmp = (Real*) calloc((K>D?K:D), sizeof(Real));
 
   mvm(Xt, false, y, c, K, D);
 
@@ -104,7 +104,7 @@ bool Lars::iterate() {
   // calculate Xt_A * Xcur, Matrix * vector
   // new active row to add to gram matrix of active set
   for (int i = 0; i <= active_itr; ++i) {
-    tmp[i] = dot(Xt + cur * D, Xt + beta[i].id * D, D); 
+    tmp[i] = dot(Xt + cur * D, Xt + beta[i].id * D, D);
   }
   // L[active_itr][] = tmp[];
   for (int i = 0; i <= active_itr; ++i) {
@@ -171,7 +171,7 @@ bool Lars::iterate() {
     axpy(w[i], &Xt[beta[i].id * D], u, D);
   }
   // a = X' * tmp
-  mvm(Xt, false, u, a, K, D); 
+  mvm(Xt, false, u, a, K, D);
 
   printf("u : ");
   for (int i = 0; i < D; i++) printf("%.3f ", u[i]);
@@ -221,6 +221,7 @@ void Lars::solve() {
 
     //calculateParameters();
     lambda_new = compute_lambda();
+
     printf("---------- lambda_new : %.3f lambda_old: %.3f lambda: %.3f\n", lambda_new, lambda_old, lambda);
     for (int i = 0; i < active_itr; i++)
       printf("%d : %.3f %.3f\n", beta[i].id, beta[i].v, beta_old[i].v);
@@ -271,18 +272,17 @@ void Lars::getParameters(Idx** beta_out) const {
 // computes lambda given beta, lambda = max(abs(2*X'*(X*beta - y)))
 inline Real Lars::compute_lambda() {
   // compute (y - X*beta)
-//  memcpy(tmp, y, N * sizeof(Real));
-//  for (int i = 0; i < active_itr; i++) {
-//    for (int j = 0; j < N; j++)
-//      tmp[j] -= Xt[beta[i].id * N + j] * beta[i].v;
-//  }
-//  // compute X'*(y - X*beta)
-//  Real max_lambda = Real(0.0);
-//  mvm(Xt, false, tmp, tmp, p, N);
-//  for (int i = 0; i < p; ++i) {
-//    max_lambda = fmax(max_lambda, fabs(dot(Xt + i * N, tmp, N)));
-//  }
-//  return max_lambda;
+  memcpy(tmp, y, D * sizeof(Real));
+  for (int i = 0; i < active_itr; i++) {
+    for (int j = 0; j < D; j++)
+      tmp[j] -= Xt[beta[i].id * D + j] * beta[i].v;
+  }
+  // compute X'*(y - X*beta)
+  Real max_lambda = Real(0.0);
+  for (int i = 0; i < K; ++i) {
+    max_lambda = fmax(max_lambda, fabs(dot(Xt + i * D, tmp, D)));
+  }
+  return max_lambda;
 }
 
 #endif
