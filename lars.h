@@ -259,6 +259,7 @@ void Lars::getParameters(Idx** beta_out) const {
 
 // computes lambda given beta, lambda = max(abs(2*X'*(X*beta - y)))
 inline Real Lars::compute_lambda() {
+  // compute (y - X*beta)
   memcpy(tmp, y, N * sizeof(Real));
   for (int i = 0; i < active_itr; i++) {
     for (int j = 0; j < N; j++)
