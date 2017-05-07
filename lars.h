@@ -73,7 +73,7 @@ Lars::Lars(const Real *Xt_in, const Real *y_in, int D_in, int K_in, Real lambda_
 }
 
 Lars::~Lars() {
-  printf("Lars() DONE\n");
+  print("Lars() DONE\n");
 }
 
 bool Lars::iterate() {
@@ -82,7 +82,7 @@ bool Lars::iterate() {
   Real C = 0.0;
   int cur = -1;
   for (int i = 0; i < K; ++i) {
-    printf("c[%d]=%.3f active[i]=%d\n", i, c[i], active[i]);
+    print("c[%d]=%.3f active[i]=%d\n", i, c[i], active[i]);
     if (active[i] != -1) continue;
     if (fabs(c[i]) > C) {
       cur = i;
@@ -92,10 +92,10 @@ bool Lars::iterate() {
   // All remainging C are 0
   if (cur == -1) return false;
 
-  printf("Active set size is now %d\n", active_itr + 1);
-  printf("Activate %d column with %.3f value\n", cur, C);
+  print("Active set size is now %d\n", active_itr + 1);
+  print("Activate %d column with %.3f value\n", cur, C);
 
-  printf("active[%d]=%d cur=%d D=%d\n", active_itr, active[cur], cur, D);
+  print("active[%d]=%d cur=%d D=%d\n", active_itr, active[cur], cur, D);
   assert(active[cur] == -1 and active_itr < D);
 
   active[cur] = active_itr;
@@ -111,25 +111,25 @@ bool Lars::iterate() {
     L[active_itr*active_size + i] = tmp[i];
   }
 
-  printf("L before cholesky\n");
+  print("L before cholesky\n");
   for (int i = 0; i <= active_itr; ++i) {
     for (int j = 0; j <= active_itr; ++j) {
-      printf("%.3f  ", L[i * active_size + j]);
+      print("%.3f  ", L[i * active_size + j]);
     }
-    printf("\n");
+    print("\n");
   }
-  printf("\n");
+  print("\n");
 
   update_cholesky(L, active_itr, active_itr+1, active_size);
 
-  printf("L after cholesky\n");
+  print("L after cholesky\n");
   for (int i = 0; i <= active_itr; ++i) {
     for (int j = 0; j <= active_itr; ++j) {
-      printf("%.3f  ", L[i * active_size + j]);
+      print("%.3f  ", L[i * active_size + j]);
     }
-    printf("\n");
+    print("\n");
   }
-  printf("\n");
+  print("\n");
 
   // set w[] = sign(c[])
   for (int i = 0; i <= active_itr; ++i) {
@@ -147,15 +147,15 @@ bool Lars::iterate() {
     AA += w[i] * sign(c[beta[i].id]);
   }
   AA = 1.0 / sqrt(AA);
-  printf("AA: %.3f\n", AA);
+  print("AA: %.3f\n", AA);
 
   // get the actual w[]
   for (int i = 0; i <= active_itr; ++i) {
     w[i] *= AA;
   }
-  printf("w solved :");
-  for (int i = 0; i < D; ++i) printf("%.3f ", w[i]);
-  printf("\n");
+  print("w solved :");
+  for (int i = 0; i < D; ++i) print("%.3f ", w[i]);
+  print("\n");
 
   // get a = X' X_a w
   // Now do X' (X_a w)
@@ -173,29 +173,29 @@ bool Lars::iterate() {
   // a = X' * tmp
   mvm(Xt, false, u, a, K, D);
 
-  printf("u : ");
-  for (int i = 0; i < D; i++) printf("%.3f ", u[i]);
-  printf("\n");
+  print("u : ");
+  for (int i = 0; i < D; i++) print("%.3f ", u[i]);
+  print("\n");
 
-  printf("a : ");
-  for (int i = 0; i < K; i++) printf("%.3f ", a[i]);
-  printf("\n");
+  print("a : ");
+  for (int i = 0; i < K; i++) print("%.3f ", a[i]);
+  print("\n");
 
   Real gamma = C / AA;
   int gamma_id = cur;
   if (active_itr < active_size) {
-    printf("C=%.3f AA=%.3f\n", C, AA);
+    print("C=%.3f AA=%.3f\n", C, AA);
     for (int i = 0; i < K; i++) {
       if (active[i] != -1) continue;
       Real t1 = (C - c[i]) / (AA - a[i]);
       Real t2 = (C + c[i]) / (AA + a[i]);
-      printf("%d : t1 = %.3f, t2 = %.3f\n", i, t1, t2);
+      print("%d : t1 = %.3f, t2 = %.3f\n", i, t1, t2);
 
       if (t1 > 0 and t1 < gamma) gamma = t1, gamma_id=i;
       if (t2 > 0 and t2 < gamma) gamma = t2, gamma_id=i;
     }
   }
-  printf("gamma = %.3f from %d col\n", gamma, gamma_id);
+  print("gamma = %.3f from %d col\n", gamma, gamma_id);
 
   // add gamma * w to beta
   for (int i = 0; i <= active_itr; ++i)
@@ -205,9 +205,9 @@ bool Lars::iterate() {
   for (int i = 0; i < K; ++i)
     c[i] -= gamma * a[i];
 
-  printf("beta: ");
-  for (int i = 0; i <= active_itr; ++i) printf("%d %.3f ", beta[i].id, beta[i].v);
-  printf("\n");
+  print("beta: ");
+  for (int i = 0; i <= active_itr; ++i) print("%d %.3f ", beta[i].id, beta[i].v);
+  print("\n");
 
   active_itr++;
   return true;
@@ -217,14 +217,14 @@ void Lars::solve() {
   int itr = 0;
   while (iterate()) {
     // compute lambda_new
-    printf("=========== The %d Iteration ends ===========\n", itr);
+    print("=========== The %d Iteration ends ===========\n", itr);
 
     //calculateParameters();
     lambda_new = compute_lambda();
 
-    printf("---------- lambda_new : %.3f lambda_old: %.3f lambda: %.3f\n", lambda_new, lambda_old, lambda);
+    print("---------- lambda_new : %.3f lambda_old: %.3f lambda: %.3f\n", lambda_new, lambda_old, lambda);
     for (int i = 0; i < active_itr; i++)
-      printf("%d : %.3f %.3f\n", beta[i].id, beta[i].v, beta_old[i].v);
+      print("%d : %.3f %.3f\n", beta[i].id, beta[i].v, beta_old[i].v);
 
     if (lambda_new > lambda) {
       lambda_old = lambda_new;
@@ -239,13 +239,13 @@ void Lars::solve() {
     }
     itr++;
   }
-  printf("LARS DONE\n");
+  print("LARS DONE\n");
 }
 
 
 //void Lars::calculateParameters() {
 //  for (int i = 0; i < active_itr; i++) {
-//    printf("beta[%d] = %.3f\n", beta[i].id, beta[i].v);
+//    print("beta[%d] = %.3f\n", beta[i].id, beta[i].v);
 //  }
 //
 //  mvm(Xt, false, y, tmp, D, K);
