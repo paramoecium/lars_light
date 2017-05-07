@@ -214,11 +214,11 @@ void Lars::solve() {
     for (int i = 0; i < active_itr; i++)
       print("%d : %.3f %.3f\n", beta[i].id, beta[i].v, beta_old[i].v);
 
-    if (lambda_new <= lambda) {
+    if (lambda_new > lambda) {
       lambda_old = lambda_new;
       memcpy(beta_old, beta, active_itr * sizeof(Idx));
     } else {
-      Real factor = (lambda - lambda_old) / (lambda_new - lambda_old); //TODO use L1 norm
+      Real factor = (lambda_old - lambda) / (lambda_old - lambda_new);
       for (int j = 0; j < active_itr; j++) {
 //        beta[j].v = beta_old[j].v * (1.f - factor) + factor * beta[j].v;
         beta[j].v = beta_old[j].v + factor * (beta[j].v - beta_old[j].v);
