@@ -16,8 +16,8 @@ struct Lars {
   int K, D;
   int active_size, active_itr;
 
-  const Real *Xt; //a KxD matrix, transpose of X;
-  const Real *y; //a Dx1 vector
+  Real *const Xt; //a KxD matrix, transpose of X;
+  Real *const y; //a Dx1 vector
   Idx *beta, *beta_old; // current beta and old beta solution [Not sorted]
 
   int *active; // active[i] = position beta of active param or -1
@@ -34,7 +34,7 @@ struct Lars {
   FILE *fid;
 
 
-  Lars(const Real *Xt_in, const Real *y_in, int D_in, int K_in, Real lambda_in);
+  Lars(Real *const Xt_in, Real *const y_in, int D_in, int K_in, Real lambda_in);
 
   ~Lars();
 
@@ -49,7 +49,7 @@ struct Lars {
   Real compute_lambda(); // compute lambda given beta
 };
 
-Lars::Lars(const Real *Xt_in, const Real *y_in, int D_in, int K_in, Real lambda_in):
+Lars::Lars(Real *const Xt_in, Real *const y_in, int D_in, int K_in, Real lambda_in):
     Xt(Xt_in), y(y_in), D(D_in), K(K_in), lambda(lambda_in) {
 
   beta = (Idx*) calloc(D, sizeof(Idx));
