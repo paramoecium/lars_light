@@ -23,7 +23,7 @@ int main() {
   Xt[0 * D + 2] = 1;
   Xt[0 * D + 3] = 1;
   Xt[0 * D + 4] = 1;
-  
+
   Xt[1 * D + 0] = 1;
   Xt[1 * D + 1] = 1;
   Xt[1 * D + 2] = 0;
@@ -36,9 +36,9 @@ int main() {
   y[3] = 2;
   y[4] = 2;
 
-  Lars lars(D, K, lambda);
-  
-  lars.init(Xt, y);
+  Lars lars(Xt, D, K, lambda);
+
+  lars.set_y(y);
 
   lars.solve();
 
@@ -54,7 +54,7 @@ int main() {
   y[3] = 3;
   y[4] = 3;
 
-  lars.init(Xt, y);
+  lars.set_y(y);
 
   lars.solve();
 
