@@ -36,7 +36,7 @@ struct Lars {
 
   // allocate all needed memory
   // input fixed numbers
-  Lars(int D_in, int K_in, Real lambda_in);
+  Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in);
 
   ~Lars();
 
@@ -75,7 +75,7 @@ Lars::Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in):
 }
 
 void Lars::set_y(const Real *y_in) {
-  y = y_in; 
+  y = y_in;
 
   memset(beta, 0, D*sizeof(Idx));
   memset(beta_old, 0, D*sizeof(Idx));
