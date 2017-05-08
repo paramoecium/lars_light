@@ -83,8 +83,8 @@ void cross(Real * v, Real *w, Real *M, int sizeOfV, int sizeOfW){
   v: vector
 	v = a * v
 */
-Real dot(Real a, const Real *v, int n){
-  for(i = 0; i < n; i++){
+void dot(Real a, Real *v, int n){
+  for(int i = 0; i < n; i++){
 		v[i] *= a;
 	}
 }
