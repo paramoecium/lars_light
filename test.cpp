@@ -1,7 +1,7 @@
 #include <cstdio>
 
-#include "util.h"
-#include "lars.h"
+#include "src/util.h"
+#include "src/lars.h"
 
 int main() {
 
