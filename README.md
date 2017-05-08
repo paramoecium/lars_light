@@ -7,7 +7,7 @@ Usage
 ------------
 ```bash
 mkdir build
-cd build
+cd build 
 cmake ..
 make
 ./test_lars
