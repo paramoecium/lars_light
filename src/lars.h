@@ -40,8 +40,8 @@ struct Lars {
 
   ~Lars();
 
-  // input Xt and y for computation
-  void init(const Real *Xt_in, const Real *y_in);
+  // input y for computation
+  void set_y(const Real *y_in);
 
   void solve();
 
@@ -74,9 +74,7 @@ Lars::Lars(int D_in, int K_in, Real lambda_in):
   fid = stderr;
 }
 
-void Lars::init(const Real *Xt_in, const Real *y_in) {
-
-  Xt = Xt_in;
+void Lars::set_y(const Real *y_in) {
   y = y_in; 
 
   memset(beta, 0, D*sizeof(Idx));
