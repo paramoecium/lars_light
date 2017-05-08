@@ -77,7 +77,17 @@ void cross(Real * v, Real *w, Real *M, int sizeOfV, int sizeOfW){
 		}
 	}
 }
-
+/*
+	Computes scalar product of vector
+  a: scalar
+  v: vector
+	v = a * v
+*/
+Real dot(Real a, const Real *v, int n){
+  for(i = 0; i < n; i++){
+		v[i] *= a;
+	}
+}
 /*
 	Computes cross product of two vectors
 	v : sizeOfV Real array

@@ -38,7 +38,7 @@ void cross(Real *v, Real *w, Real *M, int sizeOfV, int sizeOfW);
 // Output:
 // description
 // Used by:
-Real dot(const Real *v, int n);
+Real dot(Real a, const Real *v, int n);
 
 // Input:
 // Output:

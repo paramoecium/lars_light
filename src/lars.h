@@ -36,12 +36,12 @@ struct Lars {
 
   // allocate all needed memory
   // input fixed numbers
-  Lars(int D_in, int K_in, Real lambda_in);
+  Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in);
 
   ~Lars();
 
-  // input Xt and y for computation
-  void init(const Real *Xt_in, const Real *y_in);
+  // input y for computation
+  void set_y(const Real *y_in);
 
   void solve();
 
@@ -53,6 +53,5 @@ struct Lars {
 
   Real compute_lambda(); // compute lambda given beta
 };
-
 
 #endif
