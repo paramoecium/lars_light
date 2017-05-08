@@ -21,7 +21,7 @@ inline Real sign(Real tmp) {
 }
 
 
-const bool DEBUG = true;
+const bool DEBUG = false;
 inline void print(const char *format, ...) {
   va_list arg;
 

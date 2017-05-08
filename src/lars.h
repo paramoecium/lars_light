@@ -34,9 +34,14 @@ struct Lars {
   FILE *fid;
 
 
-  Lars(const Real *Xt_in, const Real *y_in, int D_in, int K_in, Real lambda_in);
+  // allocate all needed memory
+  // input fixed numbers
+  Lars(int D_in, int K_in, Real lambda_in);
 
   ~Lars();
+
+  // input Xt and y for computation
+  void init(const Real *Xt_in, const Real *y_in);
 
   void solve();
 
@@ -49,23 +54,40 @@ struct Lars {
   Real compute_lambda(); // compute lambda given beta
 };
 
-Lars::Lars(const Real *Xt_in, const Real *y_in, int D_in, int K_in, Real lambda_in):
-    Xt(Xt_in), y(y_in), D(D_in), K(K_in), lambda(lambda_in) {
+Lars::Lars(int D_in, int K_in, Real lambda_in):
+    D(D_in), K(K_in), lambda(lambda_in) {
 
   beta = (Idx*) calloc(D, sizeof(Idx));
   beta_old = (Idx*) calloc(D, sizeof(Idx));
 
   // Initializing
   active_size = fmin(K, D);
-  active_itr = 0;
   active = (int*) malloc(K * sizeof(int));
-  memset(active, -1, K * sizeof(int));
+
   c = (Real*) calloc(K, sizeof(Real));
   w = (Real*) calloc(active_size, sizeof(Real));
   u = (Real*) calloc(D, sizeof(Real));
   a = (Real*) calloc(K, sizeof(Real));
   L = (Real*) calloc(active_size * active_size, sizeof(Real));
   tmp = (Real*) calloc((K>D?K:D), sizeof(Real));
+
+  fid = stderr;
+}
+
+void Lars::init(const Real *Xt_in, const Real *y_in) {
+
+  Xt = Xt_in;
+  y = y_in; 
+
+  memset(beta, 0, D*sizeof(Idx));
+  memset(beta_old, 0, D*sizeof(Idx));
+
+  active_itr = 0;
+  memset(active, -1, K * sizeof(int));
+  memset(w, 0, active_size * sizeof(Real));
+  memset(u, 0, D * sizeof(Real));
+  memset(a, 0, K * sizeof(Real));
+  memset(L, 0, active_size * active_size * sizeof(Real));
 
   mvm(Xt, false, y, c, K, D);
 
@@ -170,7 +192,7 @@ bool Lars::iterate() {
   for (int i = 0; i <= active_itr; ++i) {
     axpy(w[i], &Xt[beta[i].id * D], u, D);
   }
-  // a = X' * tmp
+  // a = X' * u
   mvm(Xt, false, u, a, K, D);
 
   print("u : ");
@@ -217,7 +239,7 @@ void Lars::solve() {
   int itr = 0;
   while (iterate()) {
     // compute lambda_new
-    print("=========== The %d Iteration ends ===========\n", itr);
+    print("=========== The %d Iteration ends ===========\n\n", itr);
 
     //calculateParameters();
     lambda_new = compute_lambda();
