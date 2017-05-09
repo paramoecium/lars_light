@@ -22,7 +22,7 @@ inline Real sign(Real tmp) {
 }
 
 
-const bool DEBUG = false;
+const bool DEBUG = true;
 inline void print(const char *format, ...) {
 #ifdef DEBUG
   va_list arg;
@@ -49,8 +49,15 @@ inline T normalRand(T mean = T(0), T stdev = T(1)) {
 template <class T>
 inline void prepareData(const int D, const int K, const int r,
 			                  const bool normalize, T *Xt, T *y) {
-  //Xt = T[D*K];
-  //y = T[D*r];
+  prepare_Xt(D, K, normalize, Xt);
+  prepare_Yt(D, r, y);
+}
+
+/*
+create random Xt(K rows, D cols) and normalize each row of Xt
+*/
+template <class T>
+inline void prepare_Xt(const int D, const int K, const bool normalize, T *Xt) {
   for (int j = 0, k = 0; j < K; j++) {
     T sum = T(0);
     T sum2 = T(0);
@@ -68,10 +75,14 @@ inline void prepareData(const int D, const int K, const int r,
       }
     }
   }
-
+}
+/*
+create random Yt(r rows, D cols)
+*/
+template <class T>
+inline void prepare_Yt(const int D, const int r, T *y) {
   for (int i=0;i<D*r;i++) {
     y[i] = normalRand<T>();
   }
 }
-
 #endif
