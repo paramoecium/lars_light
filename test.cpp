@@ -2,6 +2,7 @@
 
 #include "src/util.h"
 #include "src/lars.h"
+#include "timer.h"
 
 int main() {
 
@@ -11,6 +12,7 @@ int main() {
   Real *y;
   Idx *beta;
   Real lambda = 0.1;
+  Timer timer(END_ITR);
 
   D = 5, K = 2;
   Xt = (Real*) malloc(D * K * sizeof(Real));
@@ -36,7 +38,7 @@ int main() {
   y[3] = 2;
   y[4] = 2;
 
-  Lars lars(Xt, D, K, lambda);
+  Lars lars(Xt, D, K, lambda, timer);
 
   lars.set_y(y);
 

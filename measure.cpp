@@ -9,11 +9,12 @@
 #include "lars.h"
 #include "mathOperations.h"
 #include "rdtsc.h"
+#include "timer.h"
 
 #define RUNS 10
 #define CYCLES_REQUIRED 1e7
 
-void measure(const int D, const int K, Real *Xt, Real *y, Real *beta, Real *beta_h, Real lambda) {
+void measure(const int D, const int K, Real *Xt, Real *y, Real *beta, Real *beta_h, Real lambda, Timer timer) {
   tsc_counter start, end;
   double cycles = 0.;
   size_t num_runs = RUNS;
@@ -24,7 +25,7 @@ void measure(const int D, const int K, Real *Xt, Real *y, Real *beta, Real *beta
 
   // Warm-up phase: determine number of runs needed
   // to ignore the timing overhead
-  Lars lars(Xt, D, K, lambda);
+  Lars lars(Xt, D, K, lambda, timer);
 
   while(1) {
     CPUID(); RDTSC(start);
@@ -73,18 +74,19 @@ Real *beta) {
 
 int main() {
   const int Max_D = 1000, Max_K = 1000;
-  int D, K;
   Real lambda = 0;
-  D = 10, K = 10;
+  Timer timer(END_ITR);
 
   Real *Xt = (Real*) malloc(sizeof(Real) * Max_D * Max_K);
   Real *y = (Real*) malloc(sizeof(Real) * Max_D);
   Real *beta = (Real*) malloc(sizeof(Real) * Max_K);
   Real *beta_h = (Real*) malloc(sizeof(Real) * Max_K);
 
-  for (int i = 10; i < Max_D; i += 10) {
+  for (int i = 100; i < Max_D; i += 100) {
     printf("\nD = %d, K = %d\n", i , i);
+    timer.reset();
     set_value(i, i, Xt, y, beta);
-    measure(i, i, Xt, y, beta, beta_h, lambda);
+    measure(i, i, Xt, y, beta, beta_h, lambda, timer);
+    timer.print();
   }
 }
