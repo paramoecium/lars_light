@@ -51,6 +51,8 @@ struct Lars {
 
   void getParameters(Idx** beta_out) const; // get final beta
 
+  void getParameters(Real* beta_out) const;
+
   Real compute_lambda(); // compute lambda given beta
 };
 

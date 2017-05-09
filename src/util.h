@@ -85,4 +85,22 @@ inline void prepare_Yt(const int D, const int r, T *y) {
     y[i] = normalRand<T>();
   }
 }
+
+/*
+create random BETAt(r rows, K cols)
+*/
+template <class T>
+inline void prepare_Beta(const int K, const int r, T *beta) {
+  for (int i=0;i<K*r;i++) {
+    beta[i] = normalRand<T>();
+  }
+}
+
+inline Real get_square_error(const Real *beta, const Real *beta_h, const int size) {
+  Real sqr_err = 0.0;
+  for (int i = 0; i < size; i++) {
+    sqr_err += (beta[i]-beta_h[i]) * (beta[i]-beta_h[i]);
+  }
+  return sqr_err;
+}
 #endif

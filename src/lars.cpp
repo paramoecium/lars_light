@@ -6,8 +6,8 @@
 Lars::Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in):
     Xt(Xt_in), D(D_in), K(K_in), lambda(lambda_in) {
 
-  beta = (Idx*) calloc(D, sizeof(Idx));
-  beta_old = (Idx*) calloc(D, sizeof(Idx));
+  beta = (Idx*) calloc(K, sizeof(Idx));
+  beta_old = (Idx*) calloc(K, sizeof(Idx));
 
   // Initializing
   active_size = fmin(K, D);
@@ -26,8 +26,8 @@ Lars::Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in):
 void Lars::set_y(const Real *y_in) {
   y = y_in;
 
-  memset(beta, 0, D*sizeof(Idx));
-  memset(beta_old, 0, D*sizeof(Idx));
+  memset(beta, 0, K*sizeof(Idx));
+  memset(beta_old, 0, K*sizeof(Idx));
 
   active_itr = 0;
   memset(active, -1, K * sizeof(int));
@@ -80,25 +80,7 @@ bool Lars::iterate() {
     L[active_itr*active_size + i] = tmp[i];
   }
 
-  print("L before cholesky\n");
-  for (int i = 0; i <= active_itr; ++i) {
-    for (int j = 0; j <= active_itr; ++j) {
-      print("%.3f  ", L[i * active_size + j]);
-    }
-    print("\n");
-  }
-  print("\n");
-
   update_cholesky(L, active_itr, active_itr+1, active_size);
-
-  print("L after cholesky\n");
-  for (int i = 0; i <= active_itr; ++i) {
-    for (int j = 0; j <= active_itr; ++j) {
-      print("%.3f  ", L[i * active_size + j]);
-    }
-    print("\n");
-  }
-  print("\n");
 
   // set w[] = sign(c[])
   for (int i = 0; i <= active_itr; ++i) {
@@ -235,6 +217,12 @@ void Lars::solve() {
 
 void Lars::getParameters(Idx** beta_out) const {
   *beta_out = beta;
+}
+
+void Lars::getParameters(Real* beta_out) const {
+  for (int i = 0; i < active_itr; i++) {
+    beta_out[beta[i].id] = beta[i].v;
+  }
 }
 
 
