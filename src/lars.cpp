@@ -1,3 +1,5 @@
+#include <x86intrin.h>
+
 #include "lars.h"
 #include "timer_id.h"
 
@@ -77,9 +79,32 @@ bool Lars::iterate() {
   // calculate Xt_A * Xcur, Matrix * vector
   // new active row to add to gram matrix of active set
   timer.start(UPDATE_GRAM_MATRIX);
-  for (int i = 0; i <= active_itr; ++i) {
-    L[active_itr*active_size + i] = dot(Xt + cur * D, Xt + beta[i].id * D, D);
+  for (int x = 0; x < D; x += 8) {
+    __m256 x_cur = _mm256_load_ps(&Xt[cur * D + x]);
+    __m256 l_0 = _mm256_setzero_ps();
+    __m256 l_1 = _mm256_setzero_ps();
+    int y;
+    for (y = 0; y <= active_itr; y+=2) {
+      __m256 xt_a_0 = _mm256_load_ps(&Xt[beta[y+0].id * D + x]);
+      __m256 prod_0 = _mm256_mul_ps(xt_a_0, x_cur);
+      l_0 = _mm256_add_ps(l_0, prod_0);
+
+      __m256 xt_a_1 = _mm256_load_ps(&Xt[beta[y+1].id * D + x]);
+      __m256 prod_1 = _mm256_mul_ps(xt_a_1, x_cur);
+      l_1 = _mm256_add_ps(l_1, prod_1);
+    }
+    if (y > active_itr) {
+      __m256 xt_a_0 = _mm256_load_ps(&Xt[beta[y-1].id * D + x]);
+      __m256 prod_0 = _mm256_mul_ps(xt_a_0, x_cur);
+      l_0 = _mm256_add_ps(l_0, prod_0);
+    }
+    l_0 = _mm256_add_ps(l_0, l_1);
+
+    _mm256_store_ps(&L[active_itr*active_size + x] , l_0);
   }
+//  for (int i = 0; i <= active_itr; ++i) {
+//    L[active_itr*active_size + i] = dot(Xt + cur * D, Xt + beta[i].id * D, D);
+//  }
   timer.end(UPDATE_GRAM_MATRIX);
   
 
