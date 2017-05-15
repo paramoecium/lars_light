@@ -14,7 +14,7 @@
 #define RUNS 10
 #define CYCLES_REQUIRED 1e7
 
-void measure(const int D, const int K, Real *Xt, Real *y, Real *beta, Real *beta_h, Real lambda, Timer timer) {
+int measure(const int D, const int K, Real *Xt, Real *y, Real *beta, Real *beta_h, Real lambda, Timer timer) {
   tsc_counter start, end;
   double cycles = 0.;
   size_t num_runs = RUNS;
@@ -51,7 +51,7 @@ void measure(const int D, const int K, Real *Xt, Real *y, Real *beta, Real *beta
 
   cycles = (double) (COUNTER_DIFF(end, start)) / num_runs;
 
-  printf("cycles used : %.3f\n", cycles);
+  printf("TOTAL, %.3f\n\n", cycles);
 
   #ifdef VERIFY
     lars.getParameters(beta_h);
@@ -59,6 +59,8 @@ void measure(const int D, const int K, Real *Xt, Real *y, Real *beta, Real *beta
     if (sqr_err > 1e-5) 
       printf("\nVALIDATION FAILED: get error %.3f in lars with lambda %.3f\n\n", sqr_err, lambda);
   #endif
+  
+  return num_runs;
 }
 
 void set_value(const int D, const int K, Real *Xt, Real *y,
@@ -73,7 +75,8 @@ Real *beta) {
 }
 
 int main() {
-  const int Max_D = 1000, Max_K = 1000;
+  const int Max_D = 1 << 12, Max_K = 1 << 12;
+  //const int Max_D = 600, Max_K = 600;
   Real lambda = 0;
   Timer timer(END_ITR);
 
@@ -82,11 +85,11 @@ int main() {
   Real *beta = (Real*) malloc(sizeof(Real) * Max_K);
   Real *beta_h = (Real*) malloc(sizeof(Real) * Max_K);
 
-  for (int i = 100; i < Max_D; i += 100) {
+  for (int i = 1 << 6; i < Max_D; i = i << 1) {
     printf("\nD = %d, K = %d\n", i , i);
     timer.reset();
     set_value(i, i, Xt, y, beta);
-    measure(i, i, Xt, y, beta, beta_h, lambda, timer);
-    timer.print();
+    int num_runs = measure(i, i, Xt, y, beta, beta_h, lambda, timer);
+    timer.print(num_runs);
   }
 }
