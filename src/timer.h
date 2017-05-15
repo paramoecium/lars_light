@@ -13,6 +13,7 @@ public:
   void end(TIMER_ID id);
   double get(TIMER_ID id);
   void print();
+  void print(int num_runs);
 
 private:
   double* clocks;
@@ -56,9 +57,17 @@ inline double Timer::get(TIMER_ID id) {
 
 inline void Timer::print() {
   for (int i = 0; i < (int)END_ITR; i++) {
-    printf("[TIMER] %s : %.3f cycles\n",
+    printf("%s, %.3f\n",
       TIMER_ID_STR[i],
       call_cnt == 0? 0 : clocks[i] / call_cnt[i]);
+  }
+}
+
+inline void Timer::print(int num_runs) {
+  for (int i = 0; i < (int)END_ITR; i++) {
+    printf("%s, %.3f\n",
+      TIMER_ID_STR[i],
+      call_cnt == 0? 0 : clocks[i] / num_runs);
   }
 }
 
