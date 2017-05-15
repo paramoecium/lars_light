@@ -59,7 +59,7 @@ bool Lars::iterate() {
     }
   }
   timer.end(GET_ACTIVE_IDX);
-  
+
 
   // All remainging C are 0
   if (cur == -1) return false;
@@ -78,19 +78,13 @@ bool Lars::iterate() {
   // new active row to add to gram matrix of active set
   timer.start(UPDATE_GRAM_MATRIX);
   for (int i = 0; i <= active_itr; ++i) {
-    tmp[i] = dot(Xt + cur * D, Xt + beta[i].id * D, D);
+    L[active_itr*active_size + i] = dot(Xt + cur * D, Xt + beta[i].id * D, D);
   }
   timer.end(UPDATE_GRAM_MATRIX);
-
-
-  // L[active_itr][] = tmp[];
-  for (int i = 0; i <= active_itr; ++i) {
-    L[active_itr*active_size + i] = tmp[i];
-  }
-
+  
 
   timer.start(UPDATE_CHOLESKY);
-  update_cholesky(L, active_itr, active_itr+1, active_size);
+  update_cholesky(L, active_itr, active_size);
   timer.end(UPDATE_CHOLESKY);
 
 
