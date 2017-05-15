@@ -25,13 +25,15 @@ inline void update_cholesky(float* L, int j, const int N) {
   float sum = 0.0;
   float eps_small = EPSILON;
   int i, k;
+  /* solve L^-1 with Gaussian elimination */
   for (i = 0; i < j; ++i) {
-    sum = L[j * N + i];
+    sum = 0.0;
     for (k = 0; k < i; ++k) {
-      sum -= L[i * N + k] * L[j * N + k];
+      sum += L[i * N + k] * L[j * N + k];
     }
-    L[j * N + i] = sum / L[i * N + i];
+    L[j * N + i] = (L[j * N + i] - sum) / L[i * N + i];
   }
+  /* computer the lower right entry */
   sum = L[j * N + j];
   for (k = 0; k < j; k++) {
     sum -= L[j * N + k] * L[j * N + k];
@@ -46,14 +48,16 @@ Solve for w in (X'X)w = (LL')w = v, where w can be v
 inline void backsolve(const Real *L, Real *w, const Real *v, const int n, const int N) {
   int i, k;
   Real sum;
+  /* solve L^-1 with Gaussian elimination */
   for (i = 0; i < n; i++) {
-    sum = v[i];
+    sum = 0.0;
     for (k = 0; k < i; ++k) {
-      sum -= L[i * N + k] * w[k];
+      sum += L[i * N + k] * w[k];
     }
-    w[i] = sum / L[i * N + i];
+    w[i] = (v[i] - sum) / L[i * N + i];
   }
 
+  /* solve (L')^-1 with Gaussian elimination */
   for (i = n-1; i>= 0; i--) {
     sum = w[i];
     for (k = i+1; k < n; k++) {
