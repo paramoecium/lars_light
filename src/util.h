@@ -21,19 +21,16 @@ inline Real sign(Real tmp) {
   return 0;
 }
 
-
-const bool DEBUG = true;
+#define DEBUG
 inline void print(const char *format, ...) {
 #ifdef DEBUG
   va_list arg;
   char buf[1000];
-  if (DEBUG) {
-    va_start(arg, format);
-    vsnprintf(buf, sizeof(buf), format, arg);
-    va_end(arg);
-    printf("%s", buf);
-    fflush(stdout);
-  }
+  va_start(arg, format);
+  vsnprintf(buf, sizeof(buf), format, arg);
+  va_end(arg);
+  printf("%s", buf);
+  fflush(stdout);
 #endif
 }
 
