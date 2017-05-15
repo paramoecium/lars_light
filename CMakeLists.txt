@@ -7,6 +7,7 @@ include_directories(${CMAKE_SOURCE_DIR}/lib)
 add_library(mathOperations src/mathOperations.cpp)
 add_library(lars src/lars.cpp)
 
+set(CMAKE_CXX_FLAGS "-O3")
 
 set(test_source_files test.cpp)
 add_executable(test_lars ${test_source_files})
