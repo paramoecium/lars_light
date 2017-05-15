@@ -6,7 +6,7 @@
 #ifndef UTIL_H
 #define UTIL_H
 
-typedef double Real;
+typedef float Real;
 
 struct Idx {
   int id;
