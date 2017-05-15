@@ -14,13 +14,16 @@ const Real EPSILON = 1e-9;
 // Methods //
 /////////////
 
-// Updates the cholesky (L) after having added data to row (j)
-// update L of the gram matrix after including new vector j
-// X = LL', cholesky decomposition
-// allocated memory of L is N x N x sizeof(Real)
-inline void update_cholesky(Real* L, int j, const int N) {
-  Real sum = 0.0;
-  Real eps_small = EPSILON;
+/*
+X'X = LL', L is a n x n matrix in N x N memory
+Update cholesky decomposition L of the gram matrix X'X
+after including new vector j with Gaussian elimination
+L[j * N : j * N + N] stores the inner product of the vector j and all vectors
+in the active set(including itself)
+*/
+inline void update_cholesky(float* L, int j, const int N) {
+  float sum = 0.0;
+  float eps_small = EPSILON;
   int i, k;
   for (i = 0; i < j; ++i) {
     sum = L[j * N + i];
@@ -29,37 +32,34 @@ inline void update_cholesky(Real* L, int j, const int N) {
     }
     L[j * N + i] = sum / L[i * N + i];
   }
-  sum = L[j * N + i];
-  for (k = 0; k < i; k++) {
-    sum -= L[i * N + k] * L[j * N + k];
+  sum = L[j * N + j];
+  for (k = 0; k < j; k++) {
+    sum -= L[j * N + k] * L[j * N + k];
   }
   if (sum <= 0.0) sum = eps_small;
   L[j * N + j] = sqrt(sum);
 }
-
-// Backsolve the cholesky (L) for unknown (x) given a right-hand-side (b)
-// and a total number of rows/columns (n).
-//
-// Solves for x in Lx=b
-// x can be b
-// => Assume L is nxn, x and b is vector of length n
-// assume L = nxn matrix
-// current L is of nxn size, but the memory is stored in a NxN data structure
-inline void backsolve(const Real *L, Real *x, const Real *b, const int n, const int N) {
+/*
+X'X = LL', L is a n x n matrix in N x N memory, w and v are vectors of length n
+Solve for w in (X'X)w = (LL')w = v, where w can be v
+*/
+inline void backsolve(const Real *L, Real *w, const Real *v, const int n, const int N) {
   int i, k;
   Real sum;
   for (i = 0; i < n; i++) {
-    for (sum = b[i], k = i-1; k >= 0; k--) {
-      sum -= L[i * N + k] * x[k];
+    sum = v[i];
+    for (k = 0; k < i; ++k) {
+      sum -= L[i * N + k] * w[k];
     }
-    x[i] = sum / L[i * N + i];
+    w[i] = sum / L[i * N + i];
   }
 
   for (i = n-1; i>= 0; i--) {
-    for (sum = x[i], k = i+1; k < n; k++) {
-      sum -= L[k * N + i] * x[k];
+    sum = w[i];
+    for (k = i+1; k < n; k++) {
+      sum -= L[k * N + i] * w[k];
     }
-    x[i] = sum / L[i * N + i];
+    w[i] = sum / L[i * N + i];
   }
 }
 
