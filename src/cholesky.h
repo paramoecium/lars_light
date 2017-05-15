@@ -5,11 +5,17 @@
 #include <numeric>
 #include <cstdio>
 #include <cmath>
+#include <immintrin.h>
 
 #include "util.h"
 
 const Real EPSILON = 1e-9;
-
+#define REDUCE_ADD(target){\
+tmp1 = _mm256_permute_ps(target, 0b0101);\
+tmp2 = _mm256_add_ps(target, tmp1);\
+tmp3 = _mm256_permute2f128_ps(tmp2, tmp2, 0b00000001);\
+target = _mm256_add_ps(tmp2, tmp3);\
+}
 /////////////
 // Methods //
 /////////////
@@ -22,24 +28,32 @@ L[j * N : j * N + N] stores the inner product of the vector j and all vectors
 in the active set(including itself)
 */
 inline void update_cholesky(float* L, int j, const int N) {
-  float sum = 0.0;
+  float sum_s = 0.0;
   float eps_small = EPSILON;
-  int i, k;
+  int i, k = 0;
+  __m256 tmp0, tmp1, tmp2, tmp3, tmp4, tmp5; //for macros
   /* solve L^-1 with Gaussian elimination */
   for (i = 0; i < j; ++i) {
-    sum = 0.0;
-    for (k = 0; k < i; ++k) {
-      sum += L[i * N + k] * L[j * N + k];
+    sum_s = 0.0;
+    __m256 sum = _mm256_setzero_ps();
+    for (; k + 8 <= i; k+=8) {
+      __m256 L_ik_8 = _mm256_load_ps(L + i * N + k);
+      __m256 L_jk_8 = _mm256_load_ps(L + j * N + k);
+      sum = _mm256_fmadd_ps(L_ik_8, L_jk_8, sum);
     }
-    L[j * N + i] = (L[j * N + i] - sum) / L[i * N + i];
+    REDUCE_ADD(sum)
+    for (; k < i; ++k) {
+      sum_s += L[i * N + k] * L[j * N + k];
+    }
+    L[j * N + i] = (L[j * N + i] - sum_s) / L[i * N + i];
   }
   /* computer the lower right entry */
-  sum = L[j * N + j];
+  sum_s = L[j * N + j];
   for (k = 0; k < j; k++) {
-    sum -= L[j * N + k] * L[j * N + k];
+    sum_s -= L[j * N + k] * L[j * N + k];
   }
-  if (sum <= 0.0) sum = eps_small;
-  L[j * N + j] = sqrt(sum);
+  if (sum_s <= 0.0) sum_s = eps_small;
+  L[j * N + j] = sqrt(sum_s);
 }
 /*
 X'X = LL', L is a n x n matrix in N x N memory, w and v are vectors of length n
