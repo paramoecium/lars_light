@@ -255,6 +255,7 @@ void Lars::getParameters(Idx** beta_out) const {
 }
 
 void Lars::getParameters(Real* beta_out) const {
+  memset(beta_out, 0, D * sizeof(Real));
   for (int i = 0; i < active_itr; i++) {
     beta_out[beta[i].id] = beta[i].v;
   }
