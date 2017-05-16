@@ -28,21 +28,21 @@ int measure(const int D, const int K, Real *Xt, Real *y, Real *beta, Real *beta_
   // to ignore the timing overhead
   Lars lars(Xt, D, K, lambda, timer);
 
-//  while(1) {
-//    CPUID(); RDTSC(start);
-//    for (int i = 0; i < num_runs; ++i) {
-//      lars.set_y(y);
-//      lars.solve();
-//    }
-//    CPUID(); RDTSC(end);
-//
-//    cycles = (double) (COUNTER_DIFF(end, start));
-//
-//    if (cycles >= CYCLES_REQUIRED) break;
-//
-//    num_runs *= 2;
-//  }
-//
+  while(1) {
+    CPUID(); RDTSC(start);
+    for (int i = 0; i < num_runs; ++i) {
+      lars.set_y(y);
+      lars.solve();
+    }
+    CPUID(); RDTSC(end);
+
+    cycles = (double) (COUNTER_DIFF(end, start));
+
+    if (cycles >= CYCLES_REQUIRED) break;
+
+    num_runs *= 2;
+  }
+
   num_runs = 1;
   CPUID(); RDTSC(start);
   for (int i = 0; i < num_runs; ++i) {
@@ -57,11 +57,7 @@ int measure(const int D, const int K, Real *Xt, Real *y, Real *beta, Real *beta_
 
   #ifdef VERIFY
     lars.getParameters(beta_h);
-    Real sqr_err = get_square_error(beta, beta_h, K);
-    printf("beta_h  \n");
-    for (int i = 0; i < K; i++) printf("%.3f\n", beta_h[i]);
-    printf("\n\n");
-    printf("error %.3f\n", sqr_err);
+    Real sqr_err = get_square_error(Xt, beta_h, y, K);
     if (sqr_err > 1e-5) 
       printf("\nVALIDATION FAILED: get error %.3f in lars with lambda %.3f\n\n", sqr_err, lambda);
   #endif
@@ -79,23 +75,6 @@ Real *beta) {
     axpy(beta[i], &Xt[i * D], y, D);
   }
 
-  printf("Xt\n");
-  for (int i = 0; i < K; i++) {
-    for (int j = 0; j < D; j++)
-      printf("(%d) %.3f ", i*D+j, Xt[i * D + j]);
-    printf("\n");
-  }
-  printf("\n");
-
-  printf("beta\n");
-  for (int i = 0 ; i < K; i++)
-    printf("%.3f ", beta[i]);
-  printf("\n\n");
-
-  printf("y\n");
-  for (int i = 0; i < D; i++)
-    printf("%.3f ", y[i]);
-  printf("\n\n");
 }
 
 int main() {
@@ -109,12 +88,11 @@ int main() {
   Real *beta = (Real*) malloc(sizeof(Real) * Max_K);
   Real *beta_h = (Real*) malloc(sizeof(Real) * Max_K);
 
-//  for (int i = 1 << 7; i <= Max_D; i += (1<<7)) {
-  int i = 6;
+  for (int i = 1 << 7; i <= Max_D; i += (1<<7)) {
     printf("\nD = %d, K = %d\n", i , i);
     timer.reset();
     set_value(i, i, Xt, y, beta);
     int num_runs = measure(i, i, Xt, y, beta, beta_h, lambda, timer);
-//    timer.print(num_runs);
-//  }
+  }
+    timer.print(num_runs);
 }
