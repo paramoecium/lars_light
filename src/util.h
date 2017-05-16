@@ -6,7 +6,7 @@
 #ifndef UTIL_H
 #define UTIL_H
 
-typedef float Real;
+typedef double Real;
 
 struct Idx {
   int id;
@@ -21,7 +21,7 @@ inline Real sign(Real tmp) {
   return 0;
 }
 
-#define DEBUG
+//#define DEBUG
 inline void print(const char *format, ...) {
 #ifdef DEBUG
   va_list arg;
@@ -93,11 +93,17 @@ inline void prepare_Beta(const int K, const int r, T *beta) {
   }
 }
 
-inline Real get_square_error(const Real *beta, const Real *beta_h, const int size) {
-  Real sqr_err = 0.0;
-  for (int i = 0; i < size; i++) {
-    sqr_err += (beta[i]-beta_h[i]) * (beta[i]-beta_h[i]);
-  }
-  return sqr_err;
+inline Real get_square_error(const Real *Xt, const Real *beta, const Real *y, const int size) {
+    Real *y_h = (Real*) calloc(size, sizeof(Real));
+    Real sqr_error = 0.0;
+    for (int i = 0; i < size; i++) {
+      for (int j = 0; j < size; j++) {
+        y_h[j] += Xt[i * size + j] * beta[i];
+      }   
+    }
+    for (int i = 0; i < size; i++) 
+        sqr_error += (y_h[i] - y[i]) * (y_h[i] - y[i]);
+    free(y_h);
+    return sqr_error;
 }
 #endif
