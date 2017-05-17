@@ -105,11 +105,10 @@ inline void backsolve(const Real *L, Real *w, const Real *v, const int n, const 
 
   /* solve (L')^-1 with Gaussian elimination */
   for (i = n-1; i>= 0; i--) {
-    sum = 0.0;
-    for (k = i+1; k < n; k++) {
-      sum += L[k * N + i] * w[k];
+    w[i] /= L[i * N + i];
+    for (k = 0; k < i; k++) {
+      w[k] -= L[i * N + k] * w[i];
     }
-    w[i] = (w[i] - sum) / L[i * N + i];
   }
 }
 
