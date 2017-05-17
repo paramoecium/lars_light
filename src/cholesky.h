@@ -106,7 +106,14 @@ inline void backsolve(const Real *L, Real *w, const Real *v, const int n, const 
   /* solve (L')^-1 with Gaussian elimination */
   for (i = n-1; i>= 0; i--) {
     w[i] /= L[i * N + i];
-    for (k = 0; k < i; k++) {
+    __m256 w_i = _mm256_set1_ps(w[i]);
+    for (k = 0; k + 8 <= i; k+=8) {
+      __m256 L_ik_8 = _mm256_load_ps(L + i * N + k);
+      __m256 w_k = _mm256_load_ps(w + k);
+      w_k = _mm256_sub_ps(w_k, _mm256_mul_ps(L_ik_8, w_i));
+      _mm256_store_ps(w + k, w_k);
+    }
+    for (; k < i; k++) {
       w[k] -= L[i * N + k] * w[i];
     }
   }
