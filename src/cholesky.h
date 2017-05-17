@@ -10,12 +10,24 @@
 #include "util.h"
 
 const Real EPSILON = 1e-9;
+// for float
 #define REDUCE_ADD(target){\
-tmp1 = _mm256_permute_ps(target, 0b0101);\
-tmp2 = _mm256_add_ps(target, tmp1);\
+tmp1 = _mm256_permute_ps(target, 0b10110001);\
+tmp1 = _mm256_add_ps(target, tmp1);\
+tmp2 = _mm256_permute_ps(tmp1, 0b01001110);\
+tmp2 = _mm256_add_ps(tmp2, tmp1);\
 tmp3 = _mm256_permute2f128_ps(tmp2, tmp2, 0b00000001);\
-target = _mm256_add_ps(tmp2, tmp3);\
+target = _mm256_add_ps(tmp3, tmp2);\
 }
+/*
+// for double
+#define REDUCE_ADD(target){\
+tmp1 = _mm256_permute_pd(target, 0b0101);\
+tmp1 = _mm256_add_pd(target, tmp1);\
+tmp2 = _mm256_permute2f128_pd(tmp1, tmp1, 0b00000001);\
+target = _mm256_add_pd(tmp1, tmp2);\
+}
+*/
 /////////////
 // Methods //
 /////////////
@@ -49,7 +61,7 @@ inline void update_cholesky(float* L, int j, const int N) {
     }
     L[j * N + i] = (L[j * N + i] - sum) / L[i * N + i];
   }
-  /* computer the lower right entry */
+  /* compute the lower right entry */
   sum = L[j * N + j];
   tmp0 = _mm256_setzero_ps();
   for (k = 0; k + 8 <= j; k+=8) {
@@ -93,11 +105,11 @@ inline void backsolve(const Real *L, Real *w, const Real *v, const int n, const 
 
   /* solve (L')^-1 with Gaussian elimination */
   for (i = n-1; i>= 0; i--) {
-    sum = w[i];
+    sum = 0.0;
     for (k = i+1; k < n; k++) {
-      sum -= L[k * N + i] * w[k];
+      sum += L[k * N + i] * w[k];
     }
-    w[i] = sum / L[i * N + i];
+    w[i] = (w[i] - sum) / L[i * N + i];
   }
 }
 
