@@ -93,6 +93,6 @@ int main() {
     timer.reset();
     set_value(i, i, Xt, y, beta);
     int num_runs = measure(i, i, Xt, y, beta, beta_h, lambda, timer);
-  }
     timer.print(num_runs);
+  }
 }
