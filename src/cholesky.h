@@ -10,6 +10,7 @@
 #include "util.h"
 
 const Real EPSILON = 1e-9;
+/*
 // for float
 #define REDUCE_ADD(target){\
 tmp1 = _mm256_permute_ps(target, 0b10110001);\
@@ -19,7 +20,8 @@ tmp2 = _mm256_add_ps(tmp2, tmp1);\
 tmp3 = _mm256_permute2f128_ps(tmp2, tmp2, 0b00000001);\
 target = _mm256_add_ps(tmp3, tmp2);\
 }
-/*
+*/
+
 // for double
 #define REDUCE_ADD(target){\
 tmp1 = _mm256_permute_pd(target, 0b0101);\
@@ -27,7 +29,7 @@ tmp1 = _mm256_add_pd(target, tmp1);\
 tmp2 = _mm256_permute2f128_pd(tmp1, tmp1, 0b00000001);\
 target = _mm256_add_pd(tmp1, tmp2);\
 }
-*/
+
 /////////////
 // Methods //
 /////////////
@@ -39,22 +41,22 @@ after including new vector j with Gaussian elimination
 L[j * N : j * N + N] stores the inner product of the vector j and all vectors
 in the active set(including itself)
 */
-inline void update_cholesky(float* L, int j, const int N) {
-  float sum;
-  float tmp_arr[8];
-  float eps_small = EPSILON;
+inline void update_cholesky(double* L, int j, const int N) {
+  double sum;
+  double tmp_arr[8];
+  double eps_small = EPSILON;
   int i, k;
   __m256 tmp0, tmp1, tmp2, tmp3; //for macros
   /* solve L^-1 with Gaussian elimination */
   for (i = 0; i < j; ++i) {
-    tmp0 = _mm256_setzero_ps();
+    tmp0 = _mm256_setzero_pd();
     for (k = 0; k + 8 <= i; k+=8) {
-      __m256 L_ik_8 = _mm256_load_ps(L + i * N + k);
-      __m256 L_jk_8 = _mm256_load_ps(L + j * N + k);
+      __m256 L_ik_8 = _mm256_load_pd(L + i * N + k);
+      __m256 L_jk_8 = _mm256_load_pd(L + j * N + k);
       tmp0 = _mm256_fmadd_ps(L_ik_8, L_jk_8, tmp0);
     }
     REDUCE_ADD(tmp0)
-    _mm256_store_ps(tmp_arr, tmp0);
+    _mm256_store_pd(tmp_arr, tmp0);
     sum = tmp_arr[0];
     for (; k < i; ++k) {
       sum += L[i * N + k] * L[j * N + k];
@@ -63,13 +65,13 @@ inline void update_cholesky(float* L, int j, const int N) {
   }
   /* compute the lower right entry */
   sum = L[j * N + j];
-  tmp0 = _mm256_setzero_ps();
+  tmp0 = _mm256_setzero_pd();
   for (k = 0; k + 8 <= j; k+=8) {
-    __m256 L_jk_8 = _mm256_load_ps(L + j * N + k);
+    __m256 L_jk_8 = _mm256_load_pd(L + j * N + k);
     tmp0 = _mm256_fmadd_ps(L_jk_8, L_jk_8, tmp0);
   }
   REDUCE_ADD(tmp0)
-  _mm256_store_ps(tmp_arr, tmp0);
+  _mm256_store_pd(tmp_arr, tmp0);
   sum -= tmp_arr[0];
   for (; k < j; k++) {
     sum -= L[j * N + k] * L[j * N + k];
@@ -82,20 +84,20 @@ X'X = LL', L is a n x n matrix in N x N memory, w and v are vectors of length n
 Solve for w in (X'X)w = (LL')w = v, where w can be v
 */
 inline void backsolve(const Real *L, Real *w, const Real *v, const int n, const int N) {
-  float sum;
-  float tmp_arr[8];
+  double sum;
+  double tmp_arr[8];
   int i, k;
   __m256 tmp0, tmp1, tmp2, tmp3; //for macros
   /* solve L^-1 with Gaussian elimination */
   for (i = 0; i < n; i++) {
-    tmp0 = _mm256_setzero_ps();
+    tmp0 = _mm256_setzero_pd();
     for (k = 0; k + 8 <= i; k+=8) {
-      __m256 w_k_8 = _mm256_load_ps(w + k);
-      __m256 L_ik_8 = _mm256_load_ps(L + i * N + k);
+      __m256 w_k_8 = _mm256_load_pd(w + k);
+      __m256 L_ik_8 = _mm256_load_pd(L + i * N + k);
       tmp0 = _mm256_fmadd_ps(w_k_8, L_ik_8, tmp0);
     }
     REDUCE_ADD(tmp0)
-    _mm256_store_ps(tmp_arr, tmp0);
+    _mm256_store_pd(tmp_arr, tmp0);
     sum = tmp_arr[0];
     for (; k < i; ++k) {
       sum += L[i * N + k] * w[k];
@@ -106,12 +108,12 @@ inline void backsolve(const Real *L, Real *w, const Real *v, const int n, const 
   /* solve (L')^-1 with Gaussian elimination */
   for (i = n-1; i>= 0; i--) {
     w[i] /= L[i * N + i];
-    __m256 w_i = _mm256_set1_ps(w[i]);
+    __m256 w_i = _mm256_set1_pd(w[i]);
     for (k = 0; k + 8 <= i; k+=8) {
-      __m256 L_ik_8 = _mm256_load_ps(L + i * N + k);
-      __m256 w_k = _mm256_load_ps(w + k);
-      w_k = _mm256_sub_ps(w_k, _mm256_mul_ps(L_ik_8, w_i));
-      _mm256_store_ps(w + k, w_k);
+      __m256 L_ik_8 = _mm256_load_pd(L + i * N + k);
+      __m256 w_k = _mm256_load_pd(w + k);
+      w_k = _mm256_sub_pd(w_k, _mm256_mul_pd(L_ik_8, w_i));
+      _mm256_store_pd(w + k, w_k);
     }
     for (; k < i; k++) {
       w[k] -= L[i * N + k] * w[i];
