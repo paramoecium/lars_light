@@ -80,6 +80,7 @@ bool Lars::iterate() {
   // calculate Xt_A * Xcur, Matrix * vector
   // new active row to add to gram matrix of active set
   timer.start(UPDATE_GRAM_MATRIX);
+<<<<<<< HEAD
   for (int i = 0; i <= active_itr; ++i) {
     __m256 sum0 = _mm256_setzero_pd();
     __m256 sum1 = _mm256_setzero_pd();
@@ -91,6 +92,28 @@ bool Lars::iterate() {
       __m256 cur1 = _mm256_load_pd(&Xt[cur * D + x + 4]);
       __m256 xt1  = _mm256_load_pd(&Xt[beta[i].id * D + x + 4]);
       sum1 = _mm256_add_pd(sum1, _mm256_mul_pd(cur1, xt1));
+=======
+  for (int x = 0; x < D; x += 4) {
+    __m256 x_cur = _mm256_load_pd(&Xt[cur * D + x]);
+    __m256 l_0 = _mm256_setzero_pd();
+    __m256 l_1 = _mm256_setzero_pd();
+    int y;
+    for (y = 0; y < active_itr; y+=2) {
+      __m256 xt_a_0 = _mm256_load_pd(&Xt[beta[y+0].id * D + x]);
+      __m256 prod_0 = _mm256_mul_pd(xt_a_0, x_cur);
+      l_0 = _mm256_add_pd(l_0, prod_0);
+
+      __m256 xt_a_1 = _mm256_load_pd(&Xt[beta[y+1].id * D + x]);
+      __m256 prod_1 = _mm256_mul_pd(xt_a_1, x_cur);
+      l_1 = _mm256_add_pd(l_1, prod_1);
+    }
+    // TODO : Remove this if
+    if (active_itr % 2 == 0) {
+      y = active_itr;
+      __m256 xt_a_0 = _mm256_load_pd(&Xt[beta[y].id * D + x]);
+      __m256 prod_0 = _mm256_mul_pd(xt_a_0, x_cur);
+      l_0 = _mm256_add_pd(l_0, prod_0);
+>>>>>>> optimize GET_U
     }
     sum0 = _mm256_hadd_pd(sum0, sum1);
     sum0 = _mm256_hadd_pd(sum0, sum0);
@@ -184,10 +207,22 @@ bool Lars::iterate() {
   memset(a, 0, K*sizeof(Real));
   memset(u, 0, D*sizeof(Real));
   // u = X_a * w
+  // TODO: Merge GET_U and GET_A ?
+  // TODO: Unroll to 2
   timer.start(GET_U);
   for (int i = 0; i <= active_itr; ++i) {
-    axpy(w[i], &Xt[beta[i].id * D], u, D);
+    __m256 ww = _mm256_set1_pd(w[i]);
+    for (int x = 0; x < D; x += 4) {
+      __m256 uu = _mm256_load_pd(&u[x]);
+      __m256 xa = _mm256_load_pd(&Xt[beta[i].id * D + x]);
+      __m256 xa_w = _mm256_mul_pd(ww, xa);
+      uu = _mm256_add_pd(uu, xa_w);
+      _mm256_store_pd(&u[x], uu);
+    }
   }
+//  for (int i = 0; i <= active_itr; ++i) {
+//    axpy(w[i], &Xt[beta[i].id * D], u, D);
+//  }
   timer.end(GET_U);
 
 
