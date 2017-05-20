@@ -14,7 +14,7 @@ Lars::Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in, Timer &timer_i
 
   // Initializing
   active_size = fmin(K, D);
-  active = (int*) malloc(K * sizeof(int));
+  active = (long long*) malloc(K * sizeof(long long));
 
   c = (Real*) calloc(K, sizeof(Real));
   w = (Real*) calloc(active_size, sizeof(Real));
@@ -230,7 +230,7 @@ bool Lars::iterate() {
   timer.start(GET_A);
   //mvm(Xt, false, u, a, K, D);
   for (int y = 0; y < K; y++) {
-    __m256 sum = _mm256_setzero();
+    __m256 sum = _mm256_setzero_pd();
     for (int x = 0; x < D; x += 4) {
       __m256 uu = _mm256_load_pd(&u[x]);
       __m256 xt = _mm256_load_pd(&Xt[y * D + x]);
@@ -257,17 +257,49 @@ bool Lars::iterate() {
   Real gamma = C / AA;
   int gamma_id = cur;
   if (active_itr < active_size) {
-    print("C=%.3f AA=%.3f\n", C, AA);
-    for (int i = 0; i < K; i++) {
-      if (active[i] != -1) continue;
-      Real t1 = (C - c[i]) / (AA - a[i]);
-      Real t2 = (C + c[i]) / (AA + a[i]);
-      print("%d : t1 = %.3f, t2 = %.3f\n", i, t1, t2);
+    __m256 m_one = _mm256_set1_pd(-1);
+    __m256 cc_c = _mm256_set1_pd(C);
+    __m256 aa_c  = _mm256_set1_pd(AA);
+    for (int i = 0; i < K; i+=4) {
+      __m256 cc = _mm256_load_pd(&c[i]);
+      __m256 aa = _mm256_load_pd(&a[i]);
+      __m256 c_minus = _mm256_add_pd(cc_c, -cc);
+      __m256 c_plus  = _mm256_add_pd(cc_c, cc);
+      __m256 a_minus = _mm256_add_pd(aa_c, -aa);
+      __m256 a_plus  = _mm256_add_pd(aa_c, aa);
+      __m256 ca_minus = _mm256_div_pd(c_minus, a_minus);
+      __m256 ca_plus  = _mm256_div_pd(c_plus, a_plus);
 
-      if (t1 > 0 and t1 < gamma) gamma = t1, gamma_id=i;
-      if (t2 > 0 and t2 < gamma) gamma = t2, gamma_id=i;
+      __m256 active_v = __mm256_cast_si256_pd(_mm256_load_si256(&active[i]));
+      active_v = _mm256_cmp_pd(active_v, m_one, _CMP_NEQ_OS);
+      ca_minus = _mm256_and_pd(active_v, ca_minus);
+      ca_plus = _mm256_and_pd(active_v, ca_plus);
+
+      _mm256_store_pd(tmp, ca_minus);
+      _mm256_store_pd(tmp+4, ca_plus);
+      int gamma0_id = gamma1_id = cur;
+      Real gamma0 = gamma 1 = gamma;
+      for (int j = 0; j < 4; j++) {
+        if (tmp[j] > 0 and tmp[j] < gamma0) gamma0 = tmp[j], gamma0_id = i+j;
+        if (tmp[j+4] > 0 and tmp[j+4] < gamma1) gamma1 = tmp[j+4], gamma1_id = i+j;
+      }
+      if (gamma0 < gamma1) gamma = gamma0, gamma_id = gamma0_id;
+      else                 gamma = gamma1, gamma_id = gamma1_id;
+
     }
   }
+//  if (active_itr < active_size) {
+//    print("C=%.3f AA=%.3f\n", C, AA);
+//    for (int i = 0; i < K; i++) {
+//      if (active[i] != -1) continue;
+//      Real t1 = (C - c[i]) / (AA - a[i]);
+//      Real t2 = (C + c[i]) / (AA + a[i]);
+//      print("%d : t1 = %.3f, t2 = %.3f\n", i, t1, t2);
+//
+//      if (t1 > 0 and t1 < gamma) gamma = t1, gamma_id=i;
+//      if (t2 > 0 and t2 < gamma) gamma = t2, gamma_id=i;
+//    }
+//  }
   print("gamma = %.3f from %d col\n", gamma, gamma_id);
   timer.end(GET_GAMMA);
 

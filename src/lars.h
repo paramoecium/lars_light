@@ -22,7 +22,8 @@ struct Lars {
   const Real *y; //a Dx1 vector
   Idx *beta, *beta_old; // current beta and old beta solution [Not sorted]
 
-  int *active; // active[i] = position beta of active param or -1
+  // change to long long for double
+  long long *active; // active[i] = position beta of active param or -1
   Real *c; //
   Real *w; // 
   Real *sgn; // sign c[active_set]
