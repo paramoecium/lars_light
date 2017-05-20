@@ -56,10 +56,11 @@ int measure(const int D, const int K, Real *Xt, Real *y, Real *beta, Real *beta_
 
   printf("TOTAL, %.3f\n\n", cycles);
 
+  #define VERIFY
   #ifdef VERIFY
     lars.getParameters(beta_h);
     Real sqr_err = get_square_error(Xt, beta_h, y, K);
-    if (sqr_err > 1e-5 or sqr_err != sqr_err) 
+    if (sqr_err > 1e-9) 
       printf("\nVALIDATION FAILED: get error %.3f in lars with lambda %.3f\n\n", sqr_err, lambda);
   #endif
   
