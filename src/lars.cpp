@@ -298,8 +298,15 @@ bool Lars::iterate() {
 
   // update correlation with a
   timer.start(UPDATE_CORRELATION);
-  for (int i = 0; i < K; ++i) 
-    c[i] -= gamma * a[i];
+  __m256 g_ga = _mm256_set1_pd(gamma);
+  for (int i = 0; i < K; i+= 4) {
+    __m256 cc = _mm256_load_pd(&c[i]);
+    __m256 aa = _mm256_load_pd(&a[i]);
+    __m256 ga = _mm256_mul_pd(g_ga, aa);
+    _mm256_store_pd(&c[i], _mm256_add_pd(cc, -ga));
+  }
+//  for (int i = 0; i < K; ++i) 
+//    c[i] -= gamma * a[i];
   timer.end(UPDATE_CORRELATION);
 
   print("beta: ");
