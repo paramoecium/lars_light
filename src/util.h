@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <cmath>
 #include <cstdio>
+#include <immintrin.h>
 
 #ifndef UTIL_H
 #define UTIL_H
@@ -32,6 +33,14 @@ inline void print(const char *format, ...) {
   printf("%s", buf);
   fflush(stdout);
 #endif
+}
+
+inline void print256(const char *string, const __m256 &v) {
+  double vv[4];
+  _mm256_store_pd(vv, v);
+  printf("%s :", string);
+  for (int i = 0; i < 4; i++) printf("%.3f ", vv[i]);
+  printf("\n");
 }
 
 template <class T>
