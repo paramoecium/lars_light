@@ -79,29 +79,24 @@ bool Lars::iterate() {
   // calculate Xt_A * Xcur, Matrix * vector
   // new active row to add to gram matrix of active set
   timer.start(UPDATE_GRAM_MATRIX);
-  for (int x = 0; x < D; x += 8) {
-    __m256 x_cur = _mm256_load_pd(&Xt[cur * D + x]);
-    __m256 l_0 = _mm256_setzero_pd();
-    __m256 l_1 = _mm256_setzero_pd();
-    int y;
-    for (y = 0; y <= active_itr; y+=2) {
-      __m256 xt_a_0 = _mm256_load_pd(&Xt[beta[y+0].id * D + x]);
-      __m256 prod_0 = _mm256_mul_pd(xt_a_0, x_cur);
-      l_0 = _mm256_add_pd(l_0, prod_0);
+  for (int i = 0; i <= active_itr; ++i) {
+    __m256 sum0 = _mm256_setzero_pd();
+    __m256 sum1 = _mm256_setzero_pd();
+    for (int x = 0; x < D; x += 8) {
+      __m256 cur0 = _mm256_load_pd(&Xt[cur * D + x]);
+      __m256 xt0  = _mm256_load_pd(&Xt[beta[i].id * D + x]);
+      sum0 = _mm256_add_pd(sum0, _mm256_mul_pd(cur0, xt0));
 
-      __m256 xt_a_1 = _mm256_load_pd(&Xt[beta[y+1].id * D + x]);
-      __m256 prod_1 = _mm256_mul_pd(xt_a_1, x_cur);
-      l_1 = _mm256_add_pd(l_1, prod_1);
+      __m256 cur1 = _mm256_load_pd(&Xt[cur * D + x + 4]);
+      __m256 xt1  = _mm256_load_pd(&Xt[beta[i].id * D + x + 4]);
+      sum1 = _mm256_add_pd(sum1, _mm256_mul_pd(cur1, xt1));
     }
-    if (y > active_itr) {
-      __m256 xt_a_0 = _mm256_load_pd(&Xt[beta[y-1].id * D + x]);
-      __m256 prod_0 = _mm256_mul_pd(xt_a_0, x_cur);
-      l_0 = _mm256_add_pd(l_0, prod_0);
-    }
-    l_0 = _mm256_add_pd(l_0, l_1);
-
-    _mm256_store_pd(&L[active_itr*active_size + x] , l_0);
+    sum0 = _mm256_hadd_pd(sum0, sum1);
+    sum0 = _mm256_hadd_pd(sum0, sum0);
+    _mm256_store_pd(tmp, sum0);
+    L[active_itr*active_size + i] = tmp[0] + tmp[2];
   }
+
 //  for (int i = 0; i <= active_itr; ++i) {
 //    L[active_itr*active_size + i] = dot(Xt + cur * D, Xt + beta[i].id * D, D);
 //  }
