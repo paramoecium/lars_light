@@ -14,7 +14,7 @@ Lars::Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in, Timer &timer_i
 
   // Initializing
   active_size = fmin(K, D);
-  active = (long long*) malloc(K * sizeof(long long));
+  active = (int*) malloc(K * sizeof(int));
 
   c = (Real*) calloc(K, sizeof(Real));
   w = (Real*) calloc(active_size, sizeof(Real));
@@ -270,18 +270,16 @@ bool Lars::iterate() {
       __m256 ca_minus = _mm256_div_pd(c_minus, a_minus);
       __m256 ca_plus  = _mm256_div_pd(c_plus, a_plus);
 
-      __m256 active_v = __mm256_cast_si256_pd(_mm256_load_si256(&active[i]));
-      active_v = _mm256_cmp_pd(active_v, m_one, _CMP_NEQ_OS);
-      ca_minus = _mm256_and_pd(active_v, ca_minus);
-      ca_plus = _mm256_and_pd(active_v, ca_plus);
-
       _mm256_store_pd(tmp, ca_minus);
       _mm256_store_pd(tmp+4, ca_plus);
-      int gamma0_id = gamma1_id = cur;
-      Real gamma0 = gamma 1 = gamma;
+      int gamma0_id = cur, gamma1_id = cur;
+      Real gamma0 = gamma, gamma1 = gamma;
       for (int j = 0; j < 4; j++) {
-        if (tmp[j] > 0 and tmp[j] < gamma0) gamma0 = tmp[j], gamma0_id = i+j;
-        if (tmp[j+4] > 0 and tmp[j+4] < gamma1) gamma1 = tmp[j+4], gamma1_id = i+j;
+        if (active[i] == -1) continue;
+        if (tmp[j] > 0 and tmp[j] < gamma0) 
+            gamma0 = tmp[j], gamma0_id = i+j;
+        if (tmp[j+4] > 0 and tmp[j+4] < gamma1) 
+            gamma1 = tmp[j+4], gamma1_id = i+j;
       }
       if (gamma0 < gamma1) gamma = gamma0, gamma_id = gamma0_id;
       else                 gamma = gamma1, gamma_id = gamma1_id;
@@ -304,14 +302,23 @@ bool Lars::iterate() {
   timer.end(GET_GAMMA);
 
   // add gamma * w to beta
+  // TODO: separate struct Idx to 2 array
   timer.start(UPDATE_BETA);
-  for (int i = 0; i <= active_itr; ++i)
-    beta[i].v += gamma * w[i];
+  __m256 g_gw = _mm256_set1_pd(gamma);
+  for (i = 0; i <= active_itr-4; i+=4) {
+    __m256 ww = _mm256_load_pd(&w[i]);
+    __m256 gw = _mm256_mul_pd(g_gw, ww);
+    _mm256_store_pd(tmp, gw);
+    for (int j = 0; j < 4; j++) beta[i+j].v += tmp[j];
+  }
+  for (; i <= active_itr; ++i) beta[i].v += tmp[i];
+//  for (int i = 0; i <= active_itr; ++i)
+//    beta[i].v += gamma * w[i];
   timer.end(UPDATE_BETA);
 
   // update correlation with a
   timer.start(UPDATE_CORRELATION);
-  for (int i = 0; i < K; ++i)
+  for (int i = 0; i < K; ++i) 
     c[i] -= gamma * a[i];
   timer.end(UPDATE_CORRELATION);
 

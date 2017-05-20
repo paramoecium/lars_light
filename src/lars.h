@@ -23,7 +23,7 @@ struct Lars {
   Idx *beta, *beta_old; // current beta and old beta solution [Not sorted]
 
   // change to long long for double
-  long long *active; // active[i] = position beta of active param or -1
+  int *active; // active[i] = position beta of active param or -1
   Real *c; //
   Real *w; // 
   Real *sgn; // sign c[active_set]
