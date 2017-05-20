@@ -124,12 +124,13 @@ bool Lars::iterate() {
   timer.end(BACKSOLVE_CHOLESKY);
 
 
+  int V_size = (1 + active_itr)/4, V_res = (1 + active_itr)%4;
+
   // AA is is used to finalize w[]
   // AA = 1 / sqrt(sum of all entries in the inverse of G_A);
   timer.start(GET_AA);
   Real AA = 0.0;
   __m256 aa = _mm256_setzero_pd();
-  int V_size = (1 + active_itr)/4, V_res = (1 + active_itr)%4;
   for (int ii = 0; ii < V_size; ++ii) {
     int i = ii * 4;
     __m256 ww = _mm256_load_pd(&w[i]);
@@ -153,18 +154,21 @@ bool Lars::iterate() {
 
   // get the actual w[]
   timer.start(GET_W);
-  //for (i = 0; i <= active_itr-4; i+=4) {
-  //  __m256 ww = _mm256_load_pd(&w[i]);
-  //  __m256 aa = _mm256_set1_pd(AA);
-  //  _mm256_store_pd(&w[i], _mm256_mul_pd(ww, aa));
-  //}
-  ////TODO : Remove residual
-  //for (; i <= active_itr; i++) {
-  //  w[i] *= AA;
-  //}
-  for (int i = 0; i <= active_itr; ++i) {
+
+  for (int ii = 0; ii < V_size; ++ii) {
+    int i = ii * 4;
+    __m256 ww = _mm256_load_pd(&w[i]);
+    __m256 aa = _mm256_set1_pd(AA);
+    _mm256_store_pd(&w[i], _mm256_mul_pd(ww, aa));
+  }
+  //TODO : Remove residual
+  for (int ii = 0; ii < V_res; ii++) {
+    int i = 4 * V_size + ii;
     w[i] *= AA;
   }
+  //for (int i = 0; i <= active_itr; ++i) {
+  //  w[i] *= AA;
+  //}
   print("w solved :");
   for (int i = 0; i < D; ++i) print("%.3f ", w[i]);
   print("\n");
