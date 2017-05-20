@@ -389,14 +389,44 @@ inline Real Lars::compute_lambda() {
   // compute (y - X*beta)
   memcpy(tmp, y, D * sizeof(Real));
   for (int i = 0; i < active_itr; i++) {
-    for (int j = 0; j < D; j++)
-      tmp[j] -= Xt[beta[i].id * D + j] * beta[i].v;
+    __m256 beta_v = _mm256_set1_pd(beta[i].v);
+    int beta_id = beta[i].id;
+    for (int j = 0; j < D; j+=4) {
+      __m256 yy = _mm256_load_pd(&tmp[j]);
+      __m256 xt = _mm256_load_pd(&Xt[beta_id + j]);
+      __m256 y_xtb = _mm256_add_pd(yy, -_mm256_mul_pd(xt, beta_v));
+      _mm256_store_pd(&tmp[j], y_xtb);
+    }
   }
+  //memcpy(tmp, y, D * sizeof(Real));
+  //for (int i = 0; i < active_itr; i++) {
+  //  for (int j = 0; j < D; j++)
+  //    tmp[j] -= Xt[beta[i].id * D + j] * beta[i].v;
+  //}
   // compute X'*(y - X*beta)
   Real max_lambda = Real(0.0);
   for (int i = 0; i < K; ++i) {
-    max_lambda = fmax(max_lambda, fabs(dot(Xt + i * D, tmp, D)));
+    Real lambda_tmp[5] = {0};
+    for (int j = 0; j < D; j+=8) {
+      __m256 xt0 = _mm256_load_pd(&Xt[i * D + j + 0]);
+      __m256 y_xtb0 = _mm256_load_pd(&tmp[j + 0]);
+      __m256 lambda0 = _mm256_mul_pd(xt0, y_xtb0);
+
+      __m256 xt1 = _mm256_load_pd(&Xt[i * D + j + 4]);
+      __m256 y_xtb1 = _mm256_load_pd(&tmp[j + 4]);
+      __m256 lambda1 = _mm256_mul_pd(xt1, y_xtb1);
+
+      __m256 lambda01 = _mm256_hadd_pd(lambda0, lambda1);
+      lambda01 = _mm256_hadd_pd(lambda01, lambda01);
+      _mm256_store_pd(lambda_tmp, lambda01);
+      lambda_tmp[4] += (lambda_tmp[0] + lambda_tmp[2]);
+    }
+    max_lambda = fmax(max_lambda, fabs(lambda_tmp[4]));
   }
+//  Real max_lambda = Real(0.0);
+//  for (int i = 0; i < K; ++i) {
+//    max_lambda = fmax(max_lambda, fabs(dot(Xt + i * D, tmp, D)));
+//  }
   return max_lambda;
 }
 
