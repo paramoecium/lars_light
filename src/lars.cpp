@@ -280,20 +280,20 @@ bool Lars::iterate() {
   // add gamma * w to beta
   // TODO: separate struct Idx to 2 array
   timer.start(UPDATE_BETA);
-//  __m256 g_gw = _mm256_set1_pd(gamma);
-//  for (int ii = 0; ii < V_size; ++ii) {
-//    int i = ii * 4;
-//    __m256 ww = _mm256_load_pd(&w[i]);
-//    __m256 gw = _mm256_mul_pd(g_gw, ww);
-//    _mm256_store_pd(tmp, gw);
-//    for (int j = 0; j < 4; j++) beta[i+j].v += tmp[j];
-//  }
-//  for (int ii = 0; ii < V_res; ++ii) {
-//    int i = 4 * V_size + ii;
-//    beta[i].v += tmp[i];
-//  }
-  for (int i = 0; i <= active_itr; ++i)
+  __m256 g_gw = _mm256_set1_pd(gamma);
+  for (int ii = 0; ii < V_size; ++ii) {
+    int i = ii * 4;
+    __m256 ww = _mm256_load_pd(&w[i]);
+    __m256 gw = _mm256_mul_pd(g_gw, ww);
+    _mm256_store_pd(tmp, gw);
+    for (int j = 0; j < 4; j++) beta[i+j].v += tmp[j];
+  }
+  for (int ii = 0; ii < V_res; ++ii) {
+    int i = 4 * V_size + ii;
     beta[i].v += gamma * w[i];
+  }
+//  for (int i = 0; i <= active_itr; ++i)
+//    beta[i].v += gamma * w[i];
   timer.end(UPDATE_BETA);
 
   // update correlation with a
