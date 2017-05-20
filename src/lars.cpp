@@ -18,6 +18,7 @@ Lars::Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in, Timer &timer_i
 
   c = (Real*) calloc(K, sizeof(Real));
   w = (Real*) calloc(active_size, sizeof(Real));
+  sgn = (Real*) calloc(active_size, sizeof(Real));
   u = (Real*) calloc(D, sizeof(Real));
   a = (Real*) calloc(K, sizeof(Real));
   L = (Real*) calloc(active_size * active_size, sizeof(Real));
@@ -111,7 +112,7 @@ bool Lars::iterate() {
   // set w[] = sign(c[])
   timer.start(INITIALIZE_W);
   for (int i = 0; i <= active_itr; ++i) {
-    w[i] = sign(c[beta[i].id]);
+    sgn[i] = sign(c[beta[i].id]);
   }
   timer.end(INITIALIZE_W);
 
@@ -119,7 +120,7 @@ bool Lars::iterate() {
   // w = R\(R'\s)
   // w is now storing sum of all rows? in the inverse of G_A
   timer.start(BACKSOLVE_CHOLESKY);
-  backsolve(L, w, w, active_itr+1, active_size);
+  backsolve(L, w, sgn, active_itr+1, active_size);
   timer.end(BACKSOLVE_CHOLESKY);
 
 
@@ -127,9 +128,23 @@ bool Lars::iterate() {
   // AA = 1 / sqrt(sum of all entries in the inverse of G_A);
   timer.start(GET_AA);
   Real AA = 0.0;
-  for (int i = 0; i <= active_itr; ++i) {
-    AA += w[i] * sign(c[beta[i].id]);
+  int i;
+  for (i = 0; i <= active_itr-4; i+=4) {
+    __m256 ww = _mm256_load_pd(&w[i]);
+    __m256 sn = _mm256_load_pd(&sgn[i]);
+    __m256 aa = _mm256_mul_pd(ww, sn);
+    __m256 ha = _mm256_hadd_ps(aa, ww); 
+    Real a4[4];
+    _mm256_store_pd(a4, ha);
+    AA += (a4[0] + a4[2]);
   }
+  //TODO: Remove residual 
+  for (; i <=active_itr; i++) {
+    AA += w[i] * sgn[i];
+  }
+//  for (int i = 0; i <= active_itr; ++i) {
+//    AA += w[i] * sign(c[beta[i].id]);
+//  }
   AA = 1.0 / sqrt(AA);
   print("AA: %.3f\n", AA);
   timer.end(GET_AA);
@@ -137,9 +152,18 @@ bool Lars::iterate() {
 
   // get the actual w[]
   timer.start(GET_W);
-  for (int i = 0; i <= active_itr; ++i) {
+  for (i = 0; i <= active_itr-4; i+=4) {
+    __m256 ww = _mm256_load_pd(&w[i]);
+    __m256 aa = _mm256_set1_pd(AA);
+    _mm256_store_pd(&w[i], _mm256_mul_pd(ww, aa));
+  }
+  //TODO : Remove residual
+  for (; i <= active_itr; i++) {
     w[i] *= AA;
   }
+  //for (int i = 0; i <= active_itr; ++i) {
+  //  w[i] *= AA;
+  //}
   print("w solved :");
   for (int i = 0; i < D; ++i) print("%.3f ", w[i]);
   print("\n");
@@ -275,7 +299,7 @@ void Lars::getParameters(Idx** beta_out) const {
 }
 
 void Lars::getParameters(Real* beta_out) const {
-  memset(beta_out, 0, D * sizeof(Real));
+  memset(beta_out, 0, K * sizeof(Real));
   for (int i = 0; i < active_itr; i++) {
     beta_out[beta[i].id] = beta[i].v;
   }

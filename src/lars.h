@@ -24,7 +24,8 @@ struct Lars {
 
   int *active; // active[i] = position beta of active param or -1
   Real *c; //
-  Real *w; // sign c[active_set]
+  Real *w; // 
+  Real *sgn; // sign c[active_set]
   Real *u; // unit direction of each iteration
   Real *a; // store Xt * u
   Real *L; // lower triangular matrix of the gram matrix of X_A (pxp)
