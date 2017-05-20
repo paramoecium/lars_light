@@ -208,7 +208,7 @@ bool Lars::iterate() {
   memset(u, 0, D*sizeof(Real));
   // u = X_a * w
   // TODO: Merge GET_U and GET_A ?
-  // TODO: Unroll to 2
+  // TODO: Unroll to 2 to compensate load store time
   timer.start(GET_U);
   for (int i = 0; i <= active_itr; ++i) {
     __m256 ww = _mm256_set1_pd(w[i]);
@@ -228,7 +228,19 @@ bool Lars::iterate() {
 
   // a = X' * u
   timer.start(GET_A);
-  mvm(Xt, false, u, a, K, D);
+  //mvm(Xt, false, u, a, K, D);
+  for (int y = 0; y < K; y++) {
+    __m256 sum = _mm256_setzero();
+    for (int x = 0; x < D; x += 4) {
+      __m256 uu = _mm256_load_pd(&u[x]);
+      __m256 xt = _mm256_load_pd(&Xt[y * D + x]);
+      __m256 xu = _mm256_mul_pd(uu, xt);
+      sum = _mm256_add_pd(sum, xu);
+    }
+    sum = _mm256_hadd_pd(sum, sum);
+    _mm256_store_pd(tmp, sum);
+    a[y] = tmp[0] + tmp[2];
+  }
   timer.end(GET_A);
 
 
