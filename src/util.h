@@ -9,12 +9,14 @@
 
 typedef double Real;
 
+/*
 struct Idx {
   int id;
   Real v;
 
   Idx(int id_in, Real v_in): id(id_in), v(v_in) {}
 };
+*/
 
 inline Real sign(Real tmp) {
   if (tmp > 0) return 1.0;
@@ -108,9 +110,9 @@ inline Real get_square_error(const Real *Xt, const Real *beta, const Real *y, co
     for (int i = 0; i < size; i++) {
       for (int j = 0; j < size; j++) {
         y_h[j] += Xt[i * size + j] * beta[i];
-      }   
+      }
     }
-    for (int i = 0; i < size; i++) 
+    for (int i = 0; i < size; i++)
         sqr_error += (y_h[i] - y[i]) * (y_h[i] - y[i]);
     free(y_h);
     return sqr_error;
