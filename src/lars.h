@@ -3,6 +3,7 @@
 #include <cmath>
 #include <algorithm>
 #include <cassert>
+#include <cstring>
 
 #include "util.h"
 #include "mathOperations.h"
