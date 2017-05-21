@@ -308,11 +308,47 @@ bool Lars::iterate() {
   // update correlation with a
   timer.start(UPDATE_CORRELATION);
   __m256d g_ga = _mm256_set1_pd(gamma);
-  for (int i = 0; i < K; i+= 4) {
-    __m256d cc = _mm256_load_pd(&c[i]);
-    __m256d aa = _mm256_load_pd(&a[i]);
-    __m256d ga = _mm256_mul_pd(g_ga, aa);
-    _mm256_store_pd(&c[i], _mm256_add_pd(cc, -ga));
+  for (int i = 0; i < K; i+=32) {
+    __m256d cc0 = _mm256_load_pd(&c[i+0]);
+    __m256d aa0 = _mm256_load_pd(&a[i+0]);
+    __m256d ga0 = _mm256_add_pd(cc0, - _mm256_mul_pd(g_ga, aa0));
+    _mm256_store_pd(&c[i+0], ga0);
+
+    __m256d cc1 = _mm256_load_pd(&c[i+4]);
+    __m256d aa1 = _mm256_load_pd(&a[i+4]);
+    __m256d ga1 = _mm256_add_pd(cc1, - _mm256_mul_pd(g_ga, aa1));
+    _mm256_store_pd(&c[i+4], ga1);
+
+    __m256d cc2 = _mm256_load_pd(&c[i+8]);
+    __m256d aa2 = _mm256_load_pd(&a[i+8]);
+    __m256d ga2 = _mm256_add_pd(cc2, - _mm256_mul_pd(g_ga, aa2));
+    _mm256_store_pd(&c[i+8], ga2);
+
+    __m256d cc3 = _mm256_load_pd(&c[i+12]);
+    __m256d aa3 = _mm256_load_pd(&a[i+12]);
+    __m256d ga3 = _mm256_add_pd(cc3, - _mm256_mul_pd(g_ga, aa3));
+    _mm256_store_pd(&c[i+12], ga3);
+
+    __m256d cc4 = _mm256_load_pd(&c[i+16]);
+    __m256d aa4 = _mm256_load_pd(&a[i+16]);
+    __m256d ga4 = _mm256_add_pd(cc4, - _mm256_mul_pd(g_ga, aa4));
+    _mm256_store_pd(&c[i+16], ga4);
+
+    __m256d cc5 = _mm256_load_pd(&c[i+20]);
+    __m256d aa5 = _mm256_load_pd(&a[i+20]);
+    __m256d ga5 = _mm256_add_pd(cc5, - _mm256_mul_pd(g_ga, aa5));
+    _mm256_store_pd(&c[i+20], ga5);
+
+    __m256d cc6 = _mm256_load_pd(&c[i+24]);
+    __m256d aa6 = _mm256_load_pd(&a[i+24]);
+    __m256d ga6 = _mm256_add_pd(cc6, - _mm256_mul_pd(g_ga, aa6));
+    _mm256_store_pd(&c[i+24], ga6);
+
+    __m256d cc7 = _mm256_load_pd(&c[i+28]);
+    __m256d aa7 = _mm256_load_pd(&a[i+28]);
+    __m256d ga7 = _mm256_add_pd(cc7, - _mm256_mul_pd(g_ga, aa7));
+    _mm256_store_pd(&c[i+28], ga7);
+
   }
 //  for (int i = 0; i < K; ++i)
 //    c[i] -= gamma * a[i];
