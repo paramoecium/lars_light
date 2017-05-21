@@ -5,61 +5,120 @@
 #include <numeric>
 #include <cstdio>
 #include <cmath>
+#include <immintrin.h>
 
 #include "util.h"
 
 const Real EPSILON = 1e-9;
+const int VEC_SIZE = 4;
+/*
+// for float
+#define REDUCE_ADD(target){\
+tmp1 = _mm256_permute_ps(target, 0b10110001);\
+tmp1 = _mm256_add_ps(target, tmp1);\
+tmp2 = _mm256_permute_ps(tmp1, 0b01001110);\
+tmp2 = _mm256_add_ps(tmp2, tmp1);\
+tmp3 = _mm256_permute2f128_ps(tmp2, tmp2, 0b00000001);\
+target = _mm256_add_ps(tmp3, tmp2);\
+}
+*/
+
+// for double
+#define REDUCE_ADD(target){\
+tmp1 = _mm256_permute_pd(target, 0b0101);\
+tmp1 = _mm256_add_pd(target, tmp1);\
+tmp2 = _mm256_permute2f128_pd(tmp1, tmp1, 0b00000001);\
+target = _mm256_add_pd(tmp1, tmp2);\
+}
 
 /////////////
 // Methods //
 /////////////
 
-// Updates the cholesky (L) after having added data to row (j)
-// update L of the gram matrix after including new vector j
-// X = LL', cholesky decomposition
-// allocated memory of L is N x N x sizeof(Real)
+/*
+X'X = LL', L is a n x n matrix in N x N memory
+Update cholesky decomposition L of the gram matrix X'X
+after including new vector j with Gaussian elimination
+L[j * N : j * N + N] stores the inner product of the vector j and all vectors
+in the active set(including itself)
+*/
 inline void update_cholesky(Real* L, int j, const int N) {
-  Real sum = 0.0;
+  Real sum;
+  Real tmp_arr[VEC_SIZE];
   Real eps_small = EPSILON;
   int i, k;
+  __m256d tmp0, tmp1, tmp2, tmp3; //for macros
+  /* solve L^-1 with Gaussian elimination */
   for (i = 0; i < j; ++i) {
-    sum = L[j * N + i];
-    for (k = 0; k < i; ++k) {
-      sum -= L[i * N + k] * L[j * N + k];
+    tmp0 = _mm256_setzero_pd();
+    for (k = 0; k + VEC_SIZE <= i; k+=VEC_SIZE) {
+      __m256d L_ik_vec = _mm256_load_pd(L + i * N + k);
+      __m256d L_jk_vec = _mm256_load_pd(L + j * N + k);
+      tmp0 = _mm256_fmadd_pd(L_ik_vec, L_jk_vec, tmp0);
     }
-    L[j * N + i] = sum / L[i * N + i];
+    REDUCE_ADD(tmp0)
+    _mm256_store_pd(tmp_arr, tmp0);
+    sum = tmp_arr[0];
+    for (; k < i; ++k) {
+      sum += L[i * N + k] * L[j * N + k];
+    }
+    L[j * N + i] = (L[j * N + i] - sum) / L[i * N + i];
   }
-  sum = L[j * N + i];
-  for (k = 0; k < i; k++) {
-    sum -= L[i * N + k] * L[j * N + k];
+  /* compute the lower right entry */
+  sum = L[j * N + j];
+  tmp0 = _mm256_setzero_pd();
+  for (k = 0; k + VEC_SIZE <= j; k+=VEC_SIZE) {
+    __m256d L_jk_vec = _mm256_load_pd(L + j * N + k);
+    tmp0 = _mm256_fmadd_pd(L_jk_vec, L_jk_vec, tmp0);
+  }
+  REDUCE_ADD(tmp0)
+  _mm256_store_pd(tmp_arr, tmp0);
+  sum -= tmp_arr[0];
+  for (; k < j; k++) {
+    sum -= L[j * N + k] * L[j * N + k];
   }
   if (sum <= 0.0) sum = eps_small;
   L[j * N + j] = sqrt(sum);
 }
-
-// Backsolve the cholesky (L) for unknown (x) given a right-hand-side (b)
-// and a total number of rows/columns (n).
-//
-// Solves for x in Lx=b
-// x can be b
-// => Assume L is nxn, x and b is vector of length n
-// assume L = nxn matrix
-// current L is of nxn size, but the memory is stored in a NxN data structure
-inline void backsolve(const Real *L, Real *x, const Real *b, const int n, const int N) {
-  int i, k;
+/*
+X'X = LL', L is a n x n matrix in N x N memory, w and v are vectors of length n
+Solve for w in (X'X)w = (LL')w = v, where w can be v
+*/
+inline void backsolve(const Real *L, Real *w, const Real *v, const int n, const int N) {
   Real sum;
+  Real tmp_arr[VEC_SIZE];
+  int i, k;
+  __m256d tmp0, tmp1, tmp2, tmp3; //for macros
+  /* solve L^-1 with Gaussian elimination */
   for (i = 0; i < n; i++) {
-    for (sum = b[i], k = i-1; k >= 0; k--) {
-      sum -= L[i * N + k] * x[k];
+    tmp0 = _mm256_setzero_pd();
+    for (k = 0; k + VEC_SIZE <= i; k+=VEC_SIZE) {
+      __m256d w_k_vec = _mm256_load_pd(w + k);
+      __m256d L_ik_vec = _mm256_load_pd(L + i * N + k);
+      tmp0 = _mm256_fmadd_pd(w_k_vec, L_ik_vec, tmp0);
     }
-    x[i] = sum / L[i * N + i];
+    REDUCE_ADD(tmp0)
+    _mm256_store_pd(tmp_arr, tmp0);
+    sum = tmp_arr[0];
+    for (; k < i; ++k) {
+      sum += L[i * N + k] * w[k];
+    }
+    w[i] = (v[i] - sum) / L[i * N + i];
   }
 
+  /* solve (L')^-1 with Gaussian elimination */
   for (i = n-1; i>= 0; i--) {
-    for (sum = x[i], k = i+1; k < n; k++) {
-      sum -= L[k * N + i] * x[k];
+    w[i] /= L[i * N + i];
+    __m256d w_i = _mm256_set1_pd(w[i]);
+    for (k = 0; k + VEC_SIZE <= i; k+=VEC_SIZE) {
+      __m256d L_ik_vec = _mm256_load_pd(L + i * N + k);
+      __m256d w_k = _mm256_load_pd(w + k);
+      w_k = _mm256_sub_pd(w_k, _mm256_mul_pd(L_ik_vec, w_i));
+      _mm256_store_pd(w + k, w_k);
     }
-    x[i] = sum / L[i * N + i];
+    for (; k < i; k++) {
+      w[k] -= L[i * N + k] * w[i];
+    }
   }
 }
 
