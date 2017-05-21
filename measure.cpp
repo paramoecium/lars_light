@@ -56,7 +56,6 @@ int measure(const int D, const int K, Real *Xt, Real *y, Real *beta, Real *beta_
 
   printf("TOTAL, %.3f\n\n", cycles);
 
-  #define VERIFY
   #ifdef VERIFY
     lars.getParameters(beta_h);
     Real sqr_err = get_square_error(Xt, beta_h, y, K);
@@ -80,7 +79,7 @@ Real *beta) {
 }
 
 int main() {
-  const int Max_D = 1 << 12, Max_K = 1 << 12;
+  const int Max_D = 1 << 11, Max_K = 1 << 11;
   //const int Max_D = 600, Max_K = 600;
   Real lambda = 0;
   Timer timer(END_ITR);
@@ -90,7 +89,7 @@ int main() {
   Real *beta = (Real*) malloc(sizeof(Real) * Max_K);
   Real *beta_h = (Real*) malloc(sizeof(Real) * Max_K);
 
-  for (int i = 1 << 6; i < Max_D; i = i << 1) {
+  for (int i = 1 << 7; i <= Max_D; i += (1<<7)) {
     printf("\nD = %d, K = %d\n", i , i);
     timer.reset();
     set_value(i, i, Xt, y, beta);
