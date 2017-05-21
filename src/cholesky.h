@@ -51,9 +51,9 @@ inline void update_cholesky(Real* L, int j, const int N) {
   for (i = 0; i < j; ++i) {
     tmp0 = _mm256_setzero_pd();
     for (k = 0; k + 4 <= i; k+=4) {
-      __m256d L_ik_8 = _mm256_load_pd(L + i * N + k);
-      __m256d L_jk_8 = _mm256_load_pd(L + j * N + k);
-      tmp0 = _mm256_fmadd_pd(L_ik_8, L_jk_8, tmp0);
+      __m256d L_ik_vec = _mm256_load_pd(L + i * N + k);
+      __m256d L_jk_vec = _mm256_load_pd(L + j * N + k);
+      tmp0 = _mm256_fmadd_pd(L_ik_vec, L_jk_vec, tmp0);
     }
     REDUCE_ADD(tmp0)
     _mm256_store_pd(tmp_arr, tmp0);
@@ -67,8 +67,8 @@ inline void update_cholesky(Real* L, int j, const int N) {
   sum = L[j * N + j];
   tmp0 = _mm256_setzero_pd();
   for (k = 0; k + 4 <= j; k+=4) {
-    __m256d L_jk_8 = _mm256_load_pd(L + j * N + k);
-    tmp0 = _mm256_fmadd_pd(L_jk_8, L_jk_8, tmp0);
+    __m256d L_jk_vec = _mm256_load_pd(L + j * N + k);
+    tmp0 = _mm256_fmadd_pd(L_jk_vec, L_jk_vec, tmp0);
   }
   REDUCE_ADD(tmp0)
   _mm256_store_pd(tmp_arr, tmp0);
@@ -92,9 +92,9 @@ inline void backsolve(const Real *L, Real *w, const Real *v, const int n, const 
   for (i = 0; i < n; i++) {
     tmp0 = _mm256_setzero_pd();
     for (k = 0; k + 4 <= i; k+=4) {
-      __m256d w_k_8 = _mm256_load_pd(w + k);
-      __m256d L_ik_8 = _mm256_load_pd(L + i * N + k);
-      tmp0 = _mm256_fmadd_pd(w_k_8, L_ik_8, tmp0);
+      __m256d w_k_vec = _mm256_load_pd(w + k);
+      __m256d L_ik_vec = _mm256_load_pd(L + i * N + k);
+      tmp0 = _mm256_fmadd_pd(w_k_vec, L_ik_vec, tmp0);
     }
     REDUCE_ADD(tmp0)
     _mm256_store_pd(tmp_arr, tmp0);
@@ -110,9 +110,9 @@ inline void backsolve(const Real *L, Real *w, const Real *v, const int n, const 
     w[i] /= L[i * N + i];
     __m256d w_i = _mm256_set1_pd(w[i]);
     for (k = 0; k + 4 <= i; k+=4) {
-      __m256d L_ik_8 = _mm256_load_pd(L + i * N + k);
+      __m256d L_ik_vec = _mm256_load_pd(L + i * N + k);
       __m256d w_k = _mm256_load_pd(w + k);
-      w_k = _mm256_sub_pd(w_k, _mm256_mul_pd(L_ik_8, w_i));
+      w_k = _mm256_sub_pd(w_k, _mm256_mul_pd(L_ik_vec, w_i));
       _mm256_store_pd(w + k, w_k);
     }
     for (; k < i; k++) {
