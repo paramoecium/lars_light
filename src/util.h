@@ -35,7 +35,7 @@ inline void print(const char *format, ...) {
 #endif
 }
 
-inline void print256(const char *string, const __m256 &v) {
+inline void print256(const char *string, const __m256d &v) {
   double vv[4];
   _mm256_store_pd(vv, v);
   printf("%s :", string);
