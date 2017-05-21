@@ -53,7 +53,7 @@ inline void update_cholesky(double* L, int j, const int N) {
     for (k = 0; k + 8 <= i; k+=8) {
       __m256 L_ik_8 = _mm256_load_pd(L + i * N + k);
       __m256 L_jk_8 = _mm256_load_pd(L + j * N + k);
-      tmp0 = _mm256_fmadd_ps(L_ik_8, L_jk_8, tmp0);
+      tmp0 = _mm256_fmadd_pd(L_ik_8, L_jk_8, tmp0);
     }
     REDUCE_ADD(tmp0)
     _mm256_store_pd(tmp_arr, tmp0);
@@ -68,7 +68,7 @@ inline void update_cholesky(double* L, int j, const int N) {
   tmp0 = _mm256_setzero_pd();
   for (k = 0; k + 8 <= j; k+=8) {
     __m256 L_jk_8 = _mm256_load_pd(L + j * N + k);
-    tmp0 = _mm256_fmadd_ps(L_jk_8, L_jk_8, tmp0);
+    tmp0 = _mm256_fmadd_pd(L_jk_8, L_jk_8, tmp0);
   }
   REDUCE_ADD(tmp0)
   _mm256_store_pd(tmp_arr, tmp0);
@@ -94,7 +94,7 @@ inline void backsolve(const Real *L, Real *w, const Real *v, const int n, const 
     for (k = 0; k + 8 <= i; k+=8) {
       __m256 w_k_8 = _mm256_load_pd(w + k);
       __m256 L_ik_8 = _mm256_load_pd(L + i * N + k);
-      tmp0 = _mm256_fmadd_ps(w_k_8, L_ik_8, tmp0);
+      tmp0 = _mm256_fmadd_pd(w_k_8, L_ik_8, tmp0);
     }
     REDUCE_ADD(tmp0)
     _mm256_store_pd(tmp_arr, tmp0);
