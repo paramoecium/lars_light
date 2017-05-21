@@ -81,15 +81,15 @@ bool Lars::iterate() {
   // new active row to add to gram matrix of active set
   timer.start(UPDATE_GRAM_MATRIX);
   for (int i = 0; i <= active_itr; ++i) {
-    __m256 sum0 = _mm256_setzero_pd();
-    __m256 sum1 = _mm256_setzero_pd();
+    __m256d sum0 = _mm256_setzero_pd();
+    __m256d sum1 = _mm256_setzero_pd();
     for (int x = 0; x < D; x += 8) {
-      __m256 cur0 = _mm256_load_pd(&Xt[cur * D + x]);
-      __m256 xt0  = _mm256_load_pd(&Xt[beta[i].id * D + x]);
+      __m256d cur0 = _mm256_load_pd(&Xt[cur * D + x]);
+      __m256d xt0  = _mm256_load_pd(&Xt[beta[i].id * D + x]);
       sum0 = _mm256_add_pd(sum0, _mm256_mul_pd(cur0, xt0));
 
-      __m256 cur1 = _mm256_load_pd(&Xt[cur * D + x + 4]);
-      __m256 xt1  = _mm256_load_pd(&Xt[beta[i].id * D + x + 4]);
+      __m256d cur1 = _mm256_load_pd(&Xt[cur * D + x + 4]);
+      __m256d xt1  = _mm256_load_pd(&Xt[beta[i].id * D + x + 4]);
       sum1 = _mm256_add_pd(sum1, _mm256_mul_pd(cur1, xt1));
     }
     sum0 = _mm256_hadd_pd(sum0, sum1);
@@ -130,11 +130,11 @@ bool Lars::iterate() {
   // AA = 1 / sqrt(sum of all entries in the inverse of G_A);
   timer.start(GET_AA);
   Real AA = 0.0;
-  __m256 aa = _mm256_setzero_pd();
+  __m256d aa = _mm256_setzero_pd();
   for (int ii = 0; ii < V_size; ++ii) {
     int i = ii * 4;
-    __m256 ww = _mm256_load_pd(&w[i]);
-    __m256 sg = _mm256_load_pd(&sgn[i]);
+    __m256d ww = _mm256_load_pd(&w[i]);
+    __m256d sg = _mm256_load_pd(&sgn[i]);
     aa = _mm256_add_pd(aa, _mm256_mul_pd(ww, sg));
   }
   aa = _mm256_hadd_pd(aa, aa);
@@ -157,8 +157,8 @@ bool Lars::iterate() {
 
   for (int ii = 0; ii < V_size; ++ii) {
     int i = ii * 4;
-    __m256 ww = _mm256_load_pd(&w[i]);
-    __m256 aa = _mm256_set1_pd(AA);
+    __m256d ww = _mm256_load_pd(&w[i]);
+    __m256d aa = _mm256_set1_pd(AA);
     _mm256_store_pd(&w[i], _mm256_mul_pd(ww, aa));
   }
   //TODO : Remove residual
@@ -188,11 +188,11 @@ bool Lars::iterate() {
   // TODO: Unroll to 2 to compensate load store time
   timer.start(GET_U);
   for (int i = 0; i <= active_itr; ++i) {
-    __m256 ww = _mm256_set1_pd(w[i]);
+    __m256d ww = _mm256_set1_pd(w[i]);
     for (int x = 0; x < D; x += 4) {
-      __m256 uu = _mm256_load_pd(&u[x]);
-      __m256 xa = _mm256_load_pd(&Xt[beta[i].id * D + x]);
-      __m256 xa_w = _mm256_mul_pd(ww, xa);
+      __m256d uu = _mm256_load_pd(&u[x]);
+      __m256d xa = _mm256_load_pd(&Xt[beta[i].id * D + x]);
+      __m256d xa_w = _mm256_mul_pd(ww, xa);
       uu = _mm256_add_pd(uu, xa_w);
       _mm256_store_pd(&u[x], uu);
     }
@@ -207,11 +207,11 @@ bool Lars::iterate() {
   timer.start(GET_A);
   //mvm(Xt, false, u, a, K, D);
   for (int y = 0; y < K; y++) {
-    __m256 sum = _mm256_setzero_pd();
+    __m256d sum = _mm256_setzero_pd();
     for (int x = 0; x < D; x += 4) {
-      __m256 uu = _mm256_load_pd(&u[x]);
-      __m256 xt = _mm256_load_pd(&Xt[y * D + x]);
-      __m256 xu = _mm256_mul_pd(uu, xt);
+      __m256d uu = _mm256_load_pd(&u[x]);
+      __m256d xt = _mm256_load_pd(&Xt[y * D + x]);
+      __m256d xu = _mm256_mul_pd(uu, xt);
       sum = _mm256_add_pd(sum, xu);
     }
     sum = _mm256_hadd_pd(sum, sum);
@@ -234,17 +234,17 @@ bool Lars::iterate() {
   Real gamma = C / AA;
   int gamma_id = cur;
   if (active_itr < active_size) {
-    __m256 cc_c = _mm256_set1_pd(C);
-    __m256 aa_c  = _mm256_set1_pd(AA);
+    __m256d cc_c = _mm256_set1_pd(C);
+    __m256d aa_c  = _mm256_set1_pd(AA);
     for (int i = 0; i < K; i+=4) {
-      __m256 cc = _mm256_load_pd(&c[i]);
-      __m256 aa = _mm256_load_pd(&a[i]);
-      __m256 c_minus = _mm256_add_pd(cc_c, -cc);
-      __m256 c_plus  = _mm256_add_pd(cc_c, cc);
-      __m256 a_minus = _mm256_add_pd(aa_c, -aa);
-      __m256 a_plus  = _mm256_add_pd(aa_c, aa);
-      __m256 ca_minus = _mm256_div_pd(c_minus, a_minus);
-      __m256 ca_plus  = _mm256_div_pd(c_plus, a_plus);
+      __m256d cc = _mm256_load_pd(&c[i]);
+      __m256d aa = _mm256_load_pd(&a[i]);
+      __m256d c_minus = _mm256_add_pd(cc_c, -cc);
+      __m256d c_plus  = _mm256_add_pd(cc_c, cc);
+      __m256d a_minus = _mm256_add_pd(aa_c, -aa);
+      __m256d a_plus  = _mm256_add_pd(aa_c, aa);
+      __m256d ca_minus = _mm256_div_pd(c_minus, a_minus);
+      __m256d ca_plus  = _mm256_div_pd(c_plus, a_plus);
 
       _mm256_store_pd(tmp, ca_minus);
       _mm256_store_pd(tmp+4, ca_plus);
@@ -280,11 +280,11 @@ bool Lars::iterate() {
   // add gamma * w to beta
   // TODO: separate struct Idx to 2 array
   timer.start(UPDATE_BETA);
-  __m256 g_gw = _mm256_set1_pd(gamma);
+  __m256d g_gw = _mm256_set1_pd(gamma);
   for (int ii = 0; ii < V_size; ++ii) {
     int i = ii * 4;
-    __m256 ww = _mm256_load_pd(&w[i]);
-    __m256 gw = _mm256_mul_pd(g_gw, ww);
+    __m256d ww = _mm256_load_pd(&w[i]);
+    __m256d gw = _mm256_mul_pd(g_gw, ww);
     _mm256_store_pd(tmp, gw);
     for (int j = 0; j < 4; j++) beta[i+j].v += tmp[j];
   }
@@ -298,11 +298,11 @@ bool Lars::iterate() {
 
   // update correlation with a
   timer.start(UPDATE_CORRELATION);
-  __m256 g_ga = _mm256_set1_pd(gamma);
+  __m256d g_ga = _mm256_set1_pd(gamma);
   for (int i = 0; i < K; i+= 4) {
-    __m256 cc = _mm256_load_pd(&c[i]);
-    __m256 aa = _mm256_load_pd(&a[i]);
-    __m256 ga = _mm256_mul_pd(g_ga, aa);
+    __m256d cc = _mm256_load_pd(&c[i]);
+    __m256d aa = _mm256_load_pd(&a[i]);
+    __m256d ga = _mm256_mul_pd(g_ga, aa);
     _mm256_store_pd(&c[i], _mm256_add_pd(cc, -ga));
   }
 //  for (int i = 0; i < K; ++i) 
@@ -389,12 +389,12 @@ inline Real Lars::compute_lambda() {
   // compute (y - X*beta)
   memcpy(tmp, y, D * sizeof(Real));
   for (int i = 0; i < active_itr; i++) {
-    __m256 beta_v = _mm256_set1_pd(beta[i].v);
+    __m256d beta_v = _mm256_set1_pd(beta[i].v);
     int beta_id = beta[i].id;
     for (int j = 0; j < D; j+=4) {
-      __m256 yy = _mm256_load_pd(&tmp[j]);
-      __m256 xt = _mm256_load_pd(&Xt[beta_id + j]);
-      __m256 y_xtb = _mm256_add_pd(yy, -_mm256_mul_pd(xt, beta_v));
+      __m256d yy = _mm256_load_pd(&tmp[j]);
+      __m256d xt = _mm256_load_pd(&Xt[beta_id + j]);
+      __m256d y_xtb = _mm256_add_pd(yy, -_mm256_mul_pd(xt, beta_v));
       _mm256_store_pd(&tmp[j], y_xtb);
     }
   }
@@ -408,15 +408,15 @@ inline Real Lars::compute_lambda() {
   for (int i = 0; i < K; ++i) {
     Real lambda_tmp[5] = {0};
     for (int j = 0; j < D; j+=8) {
-      __m256 xt0 = _mm256_load_pd(&Xt[i * D + j + 0]);
-      __m256 y_xtb0 = _mm256_load_pd(&tmp[j + 0]);
-      __m256 lambda0 = _mm256_mul_pd(xt0, y_xtb0);
+      __m256d xt0 = _mm256_load_pd(&Xt[i * D + j + 0]);
+      __m256d y_xtb0 = _mm256_load_pd(&tmp[j + 0]);
+      __m256d lambda0 = _mm256_mul_pd(xt0, y_xtb0);
 
-      __m256 xt1 = _mm256_load_pd(&Xt[i * D + j + 4]);
-      __m256 y_xtb1 = _mm256_load_pd(&tmp[j + 4]);
-      __m256 lambda1 = _mm256_mul_pd(xt1, y_xtb1);
+      __m256d xt1 = _mm256_load_pd(&Xt[i * D + j + 4]);
+      __m256d y_xtb1 = _mm256_load_pd(&tmp[j + 4]);
+      __m256d lambda1 = _mm256_mul_pd(xt1, y_xtb1);
 
-      __m256 lambda01 = _mm256_hadd_pd(lambda0, lambda1);
+      __m256d lambda01 = _mm256_hadd_pd(lambda0, lambda1);
       lambda01 = _mm256_hadd_pd(lambda01, lambda01);
       _mm256_store_pd(lambda_tmp, lambda01);
       lambda_tmp[4] += (lambda_tmp[0] + lambda_tmp[2]);
