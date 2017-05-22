@@ -18,7 +18,8 @@ Lars::Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in, Timer &timer_i
 
   // Initializing
   active_size = fmin(K, D);
-  active = (int*) malloc(K * sizeof(int));
+  active = (Real*) malloc(K * sizeof(Real));
+//  active = (int*) malloc(K * sizeof(int));
 
   c = (Real*) calloc(K, sizeof(Real));
   w = (Real*) calloc(active_size, sizeof(Real));
@@ -40,7 +41,8 @@ void Lars::set_y(const Real *y_in) {
   memset(beta_old_v, 0, K*sizeof(Real));
 
   active_itr = 0;
-  memset(active, -1, K * sizeof(int));
+  for (int i = 0; i < K; i++) active[i] = -1.0;
+//  memset(active, -1, K * sizeof(int));
   memset(w, 0, active_size * sizeof(Real));
   memset(u, 0, D * sizeof(Real));
   memset(a, 0, K * sizeof(Real));
@@ -87,16 +89,20 @@ bool Lars::iterate() {
   Real C = 0.0;
   int cur = -1;
   timer.start(GET_ACTIVE_IDX);
-  __m256d m_one = _mm256_set1_pd(-1.0);
+  __m256d zero = _mm256_setzero_pd();
   for (int i = 0; i < K; i+=4) {
+    __m256d active_v = _mm256_load_pd(&active[i]);
     __m256d cc = _mm256_load_pd(&c[i]);
-    __m256d neg_cc = _mm256_cmp_pd(cc, _mm256_setzero_pd(), _CMP_LT_OS);
-    __m256d ccx2 = _mm256_mul_pd(cc, _mm256_set1_pd(2.0));
+
+    active_v = _mm256_cmp_pd(active_v, zero, _CMP_LT_OS);
+    __m256d neg_cc = _mm256_cmp_pd(cc, zero, _CMP_LT_OS);
+    __m256d active_cc = _mm256_and_pd(cc, active_v);
+    __m256d ccx2 = _mm256_mul_pd(active_cc, _mm256_set1_pd(-2.0));
     neg_cc = _mm256_and_pd(ccx2, neg_cc);
-    __m256d fabs_cc = _mm256_add_pd(cc, -neg_cc);
+    __m256d fabs_cc = _mm256_add_pd(active_cc, neg_cc);
     _mm256_store_pd(tmp, fabs_cc);
     for (int j = 0; j < 4; j++) {
-      if (tmp[j] > C and active[i+j] == -1) {cur = i + j; C = tmp[j];}
+      if (tmp[j] > C) {cur = i + j; C = tmp[j];}
     }
   }
 //  for (int i = 0; i < K; ++i) {
@@ -113,13 +119,13 @@ bool Lars::iterate() {
   // All remainging C are 0
   if (cur == -1) return false;
 
-  print("Active set size is now %d\n", active_itr + 1);
+  print("Active set size is now %d\n", (int)(active_itr + 1));
   print("Activate %d column with %.3f value\n", cur, C);
 
   print("active[%d]=%d cur=%d D=%d\n", active_itr, active[cur], cur, D);
-  assert(active[cur] == -1 and active_itr < D);
+  assert(active[cur] < 0 and active_itr < D);
 
-  active[cur] = active_itr;
+  active[cur] = (Real) active_itr;
   //beta[active_itr] = Idx(cur, 0);
   beta_id[active_itr] = cur;
   beta_v[active_itr] = 0;
@@ -299,7 +305,7 @@ bool Lars::iterate() {
       int gamma0_id = cur, gamma1_id = cur;
       Real gamma0 = gamma, gamma1 = gamma;
       for (int j = 0; j < 4; j++) {
-        if (active[i+j] != -1) continue;
+        if (active[i+j] >= 0) continue;
         if (tmp[j] > 0 and tmp[j] < gamma0)
             gamma0 = tmp[j], gamma0_id = i+j;
         if (tmp[j+4] > 0 and tmp[j+4] < gamma1)
