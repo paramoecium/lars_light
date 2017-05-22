@@ -385,10 +385,10 @@ bool Lars::iterate() {
   __m256d g_gw = _mm256_set1_pd(gamma);
   for (int ii = 0; ii < V_size; ++ii) {
     int i = ii * 4;
+    __m256d bv = _mm256_load_pd(&beta_v[i]);
     __m256d ww = _mm256_load_pd(&w[i]);
-    __m256d gw = _mm256_mul_pd(g_gw, ww);
-    _mm256_store_pd(tmp, gw);
-    for (int j = 0; j < 4; j++) beta_v[i+j] += tmp[j];
+    bv = _mm256_add_pd(bv, _mm256_mul_pd(g_gw, ww));
+    _mm256_store_pd(&beta_v[i], bv);
   }
   for (int ii = 0; ii < V_res; ++ii) {
     int i = 4 * V_size + ii;
