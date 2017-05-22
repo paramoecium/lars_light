@@ -87,14 +87,26 @@ bool Lars::iterate() {
   Real C = 0.0;
   int cur = -1;
   timer.start(GET_ACTIVE_IDX);
-  for (int i = 0; i < K; ++i) {
-    print("c[%d]=%.3f active[i]=%d\n", i, c[i], active[i]);
-    if (active[i] != -1) continue;
-    if (fabs(c[i]) > C) {
-      cur = i;
-      C = fabs(c[i]);
+  __m256d m_one = _mm256_set1_pd(-1.0);
+  for (int i = 0; i < K; i+=4) {
+    __m256d cc = _mm256_load_pd(&c[i]);
+    __m256d neg_cc = _mm256_cmp_pd(cc, _mm256_setzero_pd(), _CMP_LT_OS);
+    __m256d ccx2 = _mm256_mul_pd(cc, _mm256_set1_pd(2.0));
+    neg_cc = _mm256_and_pd(ccx2, neg_cc);
+    __m256d fabs_cc = _mm256_add_pd(cc, -neg_cc);
+    _mm256_store_pd(tmp, fabs_cc);
+    for (int j = 0; j < 4; j++) {
+      if (tmp[j] > C and active[i+j] == -1) {cur = i + j; C = tmp[j];}
     }
   }
+//  for (int i = 0; i < K; ++i) {
+//    print("c[%d]=%.3f active[i]=%d\n", i, c[i], active[i]);
+//    if (active[i] != -1) continue;
+//    if (fabs(c[i]) > C) {
+//      cur = i;
+//      C = fabs(c[i]);
+//    }
+//  }
   timer.end(GET_ACTIVE_IDX);
 
 
