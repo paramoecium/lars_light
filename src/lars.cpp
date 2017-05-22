@@ -90,6 +90,9 @@ bool Lars::iterate() {
   int cur = -1;
   timer.start(GET_ACTIVE_IDX);
   __m256d zero = _mm256_setzero_pd();
+  __m256d maxv = _mm256_setzero_pd();
+  __m256d curv = _mm256_set1_pd(-1);
+  __m256d posv = _mm256_set_pd(-1.0, -2.0, -3.0, -4.0);
   for (int i = 0; i < K; i+=4) {
     __m256d active_v = _mm256_load_pd(&active[i]);
     __m256d cc = _mm256_load_pd(&c[i]);
@@ -100,10 +103,17 @@ bool Lars::iterate() {
     __m256d ccx2 = _mm256_mul_pd(active_cc, _mm256_set1_pd(-2.0));
     neg_cc = _mm256_and_pd(ccx2, neg_cc);
     __m256d fabs_cc = _mm256_add_pd(active_cc, neg_cc);
-    _mm256_store_pd(tmp, fabs_cc);
-    for (int j = 0; j < 4; j++) {
-      if (tmp[j] > C) {cur = i + j; C = tmp[j];}
-    }
+    //_mm256_store_pd(tmp, fabs_cc);
+
+    __m256d change = _mm256_cmp_pd(maxv, fabs_cc, _CMP_LT_OS);
+    maxv = _mm256_max_pd(maxv, fabs_cc);
+    posv = _mm256_add_pd(posv, _mm256_set1_pd(4.0));
+    curv = _mm256_blendv_pd(curv, posv, change);
+  }
+  _mm256_store_pd(tmp, maxv);
+  _mm256_store_pd(tmp + 4, curv);
+  for (int i = 0; i < 4; i++) {
+    if (tmp[i] > C) {cur = (int)tmp[i+4]; C = tmp[i];} 
   }
 //  for (int i = 0; i < K; ++i) {
 //    print("c[%d]=%.3f active[i]=%d\n", i, c[i], active[i]);
@@ -117,7 +127,7 @@ bool Lars::iterate() {
 
 
   // All remainging C are 0
-  if (cur == -1) return false;
+  if (cur < 0) return false;
 
   print("Active set size is now %d\n", (int)(active_itr + 1));
   print("Activate %d column with %.3f value\n", cur, C);
