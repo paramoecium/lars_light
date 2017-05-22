@@ -86,10 +86,16 @@ Lars::~Lars() {
 bool Lars::iterate() {
   if (active_itr > active_size) return false;
 
+  const __m256d zero = _mm256_setzero_pd();
+  const __m256d m_one = _mm256_set1_pd(-1.0);
+  const __m256d p_one = _mm256_set1_pd(1.0);
+
+  const int V_size = (1 + active_itr)/4, V_res = (1 + active_itr)%4;
+
   Real C = 0.0;
   int cur = -1;
+
   timer.start(GET_ACTIVE_IDX);
-  __m256d zero = _mm256_setzero_pd();
   __m256d maxv = _mm256_setzero_pd();
   __m256d curv = _mm256_set1_pd(-1);
   __m256d posv = _mm256_set_pd(-1.0, -2.0, -3.0, -4.0);
@@ -176,8 +182,24 @@ bool Lars::iterate() {
   // set w[] = sign(c[])
   timer.start(INITIALIZE_W);
   for (int i = 0; i <= active_itr; ++i) {
-    sgn[i] = sign(c[beta_id[i]]);
+    sgn[i] = c[beta_id[i]];
   }
+  //TODO: Unroll without residual
+  for (int ii = 0; ii < V_size; ++ii) {
+    int i = ii * 4;
+    __m256d sgnv = _mm256_load_pd(&sgn[i]);
+    __m256d neg = _mm256_cmp_pd(sgnv, zero, _CMP_LT_OS);
+    __m256d res = _mm256_add_pd(_mm256_andnot_pd(neg, p_one), _mm256_and_pd(neg, m_one));
+    _mm256_store_pd(&sgn[i], res);
+  }
+
+  for (int ii = 0; ii < V_res; ii++) {
+    int i =  4 * V_size + ii;
+    sgn[i] = sign(sgn[i]);
+  }
+  //for (int i = 0; i <= active_itr; ++i) {
+  //  sgn[i] = sign(c[beta_id[i]]);
+  //}
   timer.end(INITIALIZE_W);
 
 
@@ -187,8 +209,6 @@ bool Lars::iterate() {
   backsolve(L, w, sgn, active_itr+1, active_size);
   timer.end(BACKSOLVE_CHOLESKY);
 
-
-  int V_size = (1 + active_itr)/4, V_res = (1 + active_itr)%4;
 
   // AA is is used to finalize w[]
   // AA = 1 / sqrt(sum of all entries in the inverse of G_A);
