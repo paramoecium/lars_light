@@ -271,7 +271,26 @@ bool Lars::iterate() {
   // TODO: Merge GET_U and GET_A ?
   // TODO: Unroll to 2 to compensate load store time
   timer.start(GET_U);
-  for (int i = 0; i <= active_itr; ++i) {
+  for (int ii = 0; ii < V_size; ++ii) {
+    int i = ii * 4;
+    __m256d w0 = _mm256_set1_pd(w[i+0]);
+    __m256d w1 = _mm256_set1_pd(w[i+1]);
+    __m256d w2 = _mm256_set1_pd(w[i+2]);
+    __m256d w3 = _mm256_set1_pd(w[i+3]);
+    for (int x = 0; x < D; x += 4) {
+      __m256d uu = _mm256_load_pd(&u[x]);
+      __m256d xa0 = _mm256_load_pd(&Xt[beta_id[i+0] * D + x]);
+      __m256d xa1 = _mm256_load_pd(&Xt[beta_id[i+1] * D + x]);
+      __m256d xa2 = _mm256_load_pd(&Xt[beta_id[i+2] * D + x]);
+      __m256d xa3 = _mm256_load_pd(&Xt[beta_id[i+3] * D + x]);
+      __m256d u01 = _mm256_add_pd(_mm256_mul_pd(w0, xa0), _mm256_mul_pd(w1, xa1));
+      __m256d u23 = _mm256_add_pd(_mm256_mul_pd(w2, xa2), _mm256_mul_pd(w3, xa3));
+      uu = _mm256_add_pd(uu, _mm256_add_pd(u01, u23));
+      _mm256_store_pd(&u[x], uu);
+    }
+  }
+  for (int ii = 0; ii < V_res; ii++) {
+    int i = 4 * V_size + ii; 
     __m256d ww = _mm256_set1_pd(w[i]);
     for (int x = 0; x < D; x += 4) {
       __m256d uu = _mm256_load_pd(&u[x]);
