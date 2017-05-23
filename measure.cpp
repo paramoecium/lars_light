@@ -43,13 +43,14 @@ int measure(const int D, const int K, Real *Xt, Real *y, Real *beta, Real *beta_
     num_runs *= 2;
   }
 
-  num_runs = 1;
+  timer.reset();
   CPUID(); RDTSC(start);
   for (int i = 0; i < num_runs; ++i) {
       lars.set_y(y);
       lars.solve();
   }
   CPUID(); RDTSC(end);
+  timer.print(num_runs);
 
   cycles = (double) (COUNTER_DIFF(end, start)) / num_runs;
 
@@ -93,6 +94,5 @@ int main() {
     timer.reset();
     set_value(i, i, Xt, y, beta);
     int num_runs = measure(i, i, Xt, y, beta, beta_h, lambda, timer);
-    timer.print(num_runs);
   }
 }
