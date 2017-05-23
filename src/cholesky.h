@@ -40,7 +40,7 @@ L[j * N : j * N + N] stores the inner product of the vector j and all vectors
 in the active set(including itself)
 */
 inline void update_cholesky(Real* L, int j, const int N) {
-  __m256d sum1, sum2;
+  __m256d sum1, sum2, sum3;
   __m256d tmp0, tmp1, tmp2, tmp3; //for macros
   Real tmp_arr[VEC_SIZE];
   Real sum;
@@ -49,13 +49,15 @@ inline void update_cholesky(Real* L, int j, const int N) {
   for (i = 0; i < j; ++i) {
     sum1 = _mm256_setzero_pd();
     sum2 = _mm256_setzero_pd();
-    for (k = 0; k <= i - 2 * VEC_SIZE; k += 2 * VEC_SIZE) {
+    sum3 = _mm256_setzero_pd();
+    for (k = 0; k <= i - 3 * VEC_SIZE; k += 3 * VEC_SIZE) {
       Real *L_i_N_k = L + i * N + k;
       Real *L_j_N_k = L + j * N + k;
       sum1 = _mm256_fmadd_pd(_mm256_load_pd(L_i_N_k), _mm256_load_pd(L_j_N_k), sum1);
       sum2 = _mm256_fmadd_pd(_mm256_load_pd(L_i_N_k + VEC_SIZE), _mm256_load_pd(L_j_N_k + VEC_SIZE), sum2);
+      sum3 = _mm256_fmadd_pd(_mm256_load_pd(L_i_N_k + 2 * VEC_SIZE), _mm256_load_pd(L_j_N_k + 2 * VEC_SIZE), sum3);
     }
-    sum1 = _mm256_add_pd(sum1, sum2);
+    sum1 = _mm256_add_pd(_mm256_add_pd(sum1, sum2), sum3);
     REDUCE_ADD(sum1)
     _mm256_store_pd(tmp_arr, sum1);
     sum = tmp_arr[0];
@@ -67,13 +69,16 @@ inline void update_cholesky(Real* L, int j, const int N) {
   /* compute the lower right entry */
   sum1 = _mm256_setzero_pd();
   sum2 = _mm256_setzero_pd();
-  for (k = 0; k <= j - 2 * VEC_SIZE; k += 2 * VEC_SIZE) {
+  sum3 = _mm256_setzero_pd();
+  for (k = 0; k <= j - 3 * VEC_SIZE; k += 3 * VEC_SIZE) {
     __m256d L_i_N_k = _mm256_load_pd(L + j * N + k);
     __m256d L_i_N_k_4 = _mm256_load_pd(L + j * N + k + VEC_SIZE);
+    __m256d L_i_N_k_8 = _mm256_load_pd(L + j * N + k + 2 * VEC_SIZE);
     sum1 = _mm256_fmadd_pd(L_i_N_k, L_i_N_k, sum1);
     sum2 = _mm256_fmadd_pd(L_i_N_k_4, L_i_N_k_4, sum2);
+    sum3 = _mm256_fmadd_pd(L_i_N_k_8, L_i_N_k_8, sum3);
   }
-  sum1 = _mm256_add_pd(sum1, sum2);
+  sum1 = _mm256_add_pd(_mm256_add_pd(sum1, sum2), sum3);
   REDUCE_ADD(sum1)
   _mm256_store_pd(tmp_arr, sum1);
   sum = tmp_arr[0];
@@ -90,7 +95,7 @@ Solve for w in (X'X)w = (LL')w = v, where w can be v
 */
 inline void backsolve(const Real *L, Real *w, const Real *v,
                       const int n, const int N) {
-  __m256d sum1, sum2;
+  __m256d sum1, sum2, sum3;
   __m256d tmp0, tmp1, tmp2, tmp3; //for macros
   Real tmp_arr[VEC_SIZE];
   Real sum;
@@ -99,11 +104,13 @@ inline void backsolve(const Real *L, Real *w, const Real *v,
   for (i = 0; i < n; i++) {
     sum1 = _mm256_setzero_pd();
     sum2 = _mm256_setzero_pd();
-    for (k = 0; k <= i - 2 * VEC_SIZE; k += 2 * VEC_SIZE) {
+    sum3 = _mm256_setzero_pd();
+    for (k = 0; k <= i - 3 * VEC_SIZE; k += 3 * VEC_SIZE) {
       sum1 = _mm256_fmadd_pd(_mm256_load_pd(L + i * N + k), _mm256_load_pd(w + k), sum1);
       sum2 = _mm256_fmadd_pd(_mm256_load_pd(L + i * N + k + VEC_SIZE), _mm256_load_pd(w + k + VEC_SIZE), sum2);
+      sum3 = _mm256_fmadd_pd(_mm256_load_pd(L + i * N + k + 2 * VEC_SIZE), _mm256_load_pd(w + k + 2 * VEC_SIZE), sum3);
     }
-    sum1 = _mm256_add_pd(sum1, sum2);
+    sum1 = _mm256_add_pd(_mm256_add_pd(sum1, sum2), sum3);
     REDUCE_ADD(sum1)
     _mm256_store_pd(tmp_arr, sum1);
     sum = tmp_arr[0];
@@ -116,15 +123,21 @@ inline void backsolve(const Real *L, Real *w, const Real *v,
   for (i = n-1; i>= 0; i--) {
     w[i] /= L[i * N + i];
     __m256d w_i = _mm256_set1_pd(w[i]);
-    for (k = 0; k + 2 * VEC_SIZE <= i; k += 2 * VEC_SIZE) {
+    for (k = 0; k + 3 * VEC_SIZE <= i; k += 3 * VEC_SIZE) {
       __m256d L_ik_vec = _mm256_load_pd(L + i * N + k);
       __m256d w_k = _mm256_load_pd(w + k);
       w_k = _mm256_sub_pd(w_k, _mm256_mul_pd(L_ik_vec, w_i));
       _mm256_store_pd(w + k, w_k);
+
       __m256d L_ik_4_vec = _mm256_load_pd(L + i * N + k + VEC_SIZE);
       __m256d w_k_4 = _mm256_load_pd(w + k + VEC_SIZE);
       w_k_4 = _mm256_sub_pd(w_k_4, _mm256_mul_pd(L_ik_4_vec, w_i));
       _mm256_store_pd(w + k + VEC_SIZE, w_k_4);
+
+      __m256d L_ik_8_vec = _mm256_load_pd(L + i * N + k + 2 * VEC_SIZE);
+      __m256d w_k_8 = _mm256_load_pd(w + k + 2 * VEC_SIZE);
+      w_k_8 = _mm256_sub_pd(w_k_8, _mm256_mul_pd(L_ik_8_vec, w_i));
+      _mm256_store_pd(w + k + 2 * VEC_SIZE, w_k_8);
     }
     for (; k < i; k++) {
       w[k] -= L[i * N + k] * w[i];
