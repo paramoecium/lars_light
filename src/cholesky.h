@@ -9,7 +9,7 @@
 #include "util.h"
 
 const Real EPSILON = 1e-9;
-
+const int B = 48; //block size;
 /////////////
 // Methods //
 /////////////
@@ -24,11 +24,39 @@ in the active set(including itself)
 inline void update_cholesky(Real* L, int j, const int N) {
   Real sum = 0.0;
   Real eps_small = EPSILON;
-  int i, k;
+  int i, k, b;
   /* solve L^-1 with Gaussian elimination */
+  /*
   for (i = 0; i < j; ++i) {
     sum = 0.0;
     for (k = 0; k < i; ++k) {
+      sum += L[i * N + k] * L[j * N + k];
+    }
+    L[j * N + i] = (L[j * N + i] - sum) / L[i * N + i];
+  }
+  */
+  for (b = 0; b + B <= j; b += B) {
+    /* solving the top triangle */
+    for (i = b; i < b + B; i++) {
+      sum = 0.0;
+      for (k = b; k < i; ++k) {
+        sum += L[i * N + k] * L[j * N + k];
+      }
+      L[j * N + i] = (L[j * N + i] - sum) / L[i * N + i];
+    }
+    /* solving the rectangle below */
+    for (;i < j; i++) {
+      sum = 0.0;
+      for (k = b; k < b + B; k++) {
+        sum += L[i * N + k] * L[j * N + k];
+      }
+      L[j * N + i] -= sum;
+    }
+  }
+  /* finish the remaining triangle */
+  for (i = b; i < j; i++) {
+    sum = 0.0;
+    for (k = b; k < i; ++k) {
       sum += L[i * N + k] * L[j * N + k];
     }
     L[j * N + i] = (L[j * N + i] - sum) / L[i * N + i];
