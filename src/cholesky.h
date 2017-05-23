@@ -45,7 +45,8 @@ inline void update_cholesky(Real* L, int j, const int N) {
 X'X = LL', L is a n x n matrix in N x N memory, w and v are vectors of length n
 Solve for w in (X'X)w = (LL')w = v, where w can be v
 */
-inline void backsolve(const Real *L, Real *w, const Real *v, const int n, const int N) {
+inline void backsolve(const Real *L, Real *w, const Real *v, 
+                      const int n, const int N) {
   int i, k;
   Real sum;
   /* solve L^-1 with Gaussian elimination */
