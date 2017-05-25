@@ -7,8 +7,10 @@
 Lars::Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in, Timer &timer_in):
     Xt(Xt_in), D(D_in), K(K_in), lambda(lambda_in), timer(timer_in) {
 
-  beta = (Idx*) calloc(K, sizeof(Idx));
-  beta_old = (Idx*) calloc(K, sizeof(Idx));
+  beta_id = (int*) calloc(K, sizeof(int));
+  beta_old_id = (int*) calloc(K, sizeof(int));
+  beta_v  = (Real*) calloc(K, sizeof(Real));
+  beta_old_v  = (Real*) calloc(K, sizeof(Real));
 
   // Initializing
   active_size = fmin(K, D);
@@ -16,7 +18,7 @@ Lars::Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in, Timer &timer_i
 
   c = (Real*) calloc(K, sizeof(Real));
   w = (Real*) calloc(active_size, sizeof(Real));
-	sgn = (Real*) calloc(K, sizeof(Real));
+	sgn = (Real*) calloc(active_size, sizeof(Real));
   u = (Real*) calloc(D, sizeof(Real));
   a = (Real*) calloc(K, sizeof(Real));
   L = (Real*) calloc(active_size * active_size, sizeof(Real));
@@ -28,8 +30,10 @@ Lars::Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in, Timer &timer_i
 void Lars::set_y(const Real *y_in) {
   y = y_in;
 
-  memset(beta, 0, K*sizeof(Idx));
-  memset(beta_old, 0, K*sizeof(Idx));
+  memset(beta_id, 0, K*sizeof(int));
+  memset(beta_old_id, 0, K*sizeof(int));
+  memset(beta_v, 0, K*sizeof(Real));
+  memset(beta_old_v, 0, K*sizeof(Real));
 
   active_itr = 0;
   memset(active, -1, K * sizeof(int));
@@ -75,16 +79,17 @@ bool Lars::iterate() {
   assert(active[cur] == -1 and active_itr < D);
 
   active[cur] = active_itr;
-  beta[active_itr] = Idx(cur, 0);
+  beta_id[active_itr] = cur;
+  beta_v[active_itr] = 0;
 	sgn[active_itr] = sign(c[cur]);
 
 
-{ //TODO: Fuse here
+  //TODO: Fuse here
   // calculate Xt_A * Xcur, Matrix * vector
   // new active row to add to gram matrix of active set
   timer.start(UPDATE_GRAM_MATRIX);
   for (int i = 0; i <= active_itr; ++i) {
-    L[active_itr*active_size + i] = dot(Xt + cur * D, Xt + beta[i].id * D, D);
+    L[active_itr*active_size + i] = dot(Xt + cur * D, Xt + beta_id[i] * D, D);
   }
   timer.end(UPDATE_GRAM_MATRIX);
 
@@ -106,12 +111,12 @@ bool Lars::iterate() {
   timer.start(GET_AA);
   Real AA = 0.0;
   for (int i = 0; i <= active_itr; ++i) {
-    AA += w[i] * sign(c[beta[i].id]);
+    AA += w[i] * sign(c[beta_id[i]]);
   }
   AA = 1.0 / sqrt(AA);
   print("AA: %.3f\n", AA);
   timer.end(GET_AA);
-}
+
 
   // get the actual w[]
   // get a = X' X_a w
@@ -123,7 +128,7 @@ bool Lars::iterate() {
   timer.start(GET_U);// Fuse GET_W
   for (int i = 0; i <= active_itr; ++i) {
 		w[i] *= AA;
-    axpy(w[i], &Xt[beta[i].id * D], u, D);
+    axpy(w[i], &Xt[beta_id[i] * D], u, D);
   }
   timer.end(GET_U);
 
@@ -163,11 +168,11 @@ bool Lars::iterate() {
   // add gamma * w to beta
   timer.start(UPDATE_BETA);
   for (int i = 0; i <= active_itr; ++i)
-    beta[i].v += gamma * w[i];
+    beta_v[i] += gamma * w[i];
   timer.end(UPDATE_BETA);
 
   print("beta: ");
-  for (int i = 0; i <= active_itr; ++i) print("%d %.3f ", beta[i].id, beta[i].v);
+  for (int i = 0; i <= active_itr; ++i) print("%d %.3f ", beta_id[i], beta_v[i]);
   print("\n");
 
   active_itr++;
@@ -187,18 +192,18 @@ void Lars::solve() {
 
     print("---------- lambda_new : %.3f lambda_old: %.3f lambda: %.3f\n", lambda_new, lambda_old, lambda);
     for (int i = 0; i < active_itr; i++)
-      print("%d : %.3f %.3f\n", beta[i].id, beta[i].v, beta_old[i].v);
+      print("%d : %.3f %.3f\n", beta_id[i], beta_v[i], beta_old_v[i]);
 
     if (lambda_new > lambda) {
       lambda_old = lambda_new;
-      //printf("lambda = %.3f\n", lambda_old);
-      memcpy(beta_old, beta, active_itr * sizeof(Idx));
+      memcpy(beta_old_v, beta_v, active_itr * sizeof(Real));
+      beta_old_v[active_itr-1] = beta_v[active_itr-1];
     } else {
       Real factor = (lambda_old - lambda) / (lambda_old - lambda_new);
       timer.start(INTERPOLATE_BETA);
       for (int j = 0; j < active_itr; j++) {
 //        beta[j].v = beta_old[j].v * (1.f - factor) + factor * beta[j].v;
-        beta[j].v = beta_old[j].v + factor * (beta[j].v - beta_old[j].v);
+        beta_v[j] = beta_old_v[j] + factor * (beta_v[j] - beta_old_v[j]);
       }
       timer.end(INTERPOLATE_BETA);
       break;
@@ -208,14 +213,15 @@ void Lars::solve() {
   print("LARS DONE\n");
 }
 
-void Lars::getParameters(Idx** beta_out) const {
-  *beta_out = beta;
+void Lars::getParameters(int** beta_out_id, Real** beta_out_v) const {
+  *beta_out_id = beta_id;
+  *beta_out_v = beta_v;
 }
 
 void Lars::getParameters(Real* beta_out) const {
   memset(beta_out, 0, K * sizeof(Real));
   for (int i = 0; i < active_itr; i++) {
-    beta_out[beta[i].id] = beta[i].v;
+    beta_out[beta_id[i]] = beta_v[i];
   }
 }
 
@@ -226,7 +232,7 @@ inline Real Lars::compute_lambda() {
   memcpy(tmp, y, D * sizeof(Real));
   for (int i = 0; i < active_itr; i++) {
     for (int j = 0; j < D; j++)
-      tmp[j] -= Xt[beta[i].id * D + j] * beta[i].v;
+      tmp[j] -= Xt[beta_id[i] * D + j] * beta_v[i];
   }
   // compute X'*(y - X*beta)
   Real max_lambda = Real(0.0);

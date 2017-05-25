@@ -9,8 +9,17 @@ int main() {
   // Initailize data
   int D, K;
   Real *Xt;
+<<<<<<< HEAD
   Real *y, *y_2;
+=======
+  Real *y;
+<<<<<<< HEAD
+>>>>>>> break Idx structure into two arrays
   Idx *beta;
+=======
+  int *beta_id;
+  Real *beta_v;
+>>>>>>> 3ff04f6... break Idx structure into two arrays
   Real lambda = 0.0;
   Timer timer(END_ITR);
 
@@ -52,15 +61,15 @@ int main() {
   lars.set_y(y);
   lars.solve();
 
-  lars.getParameters(&beta);
+  lars.getParameters(&beta_id, &beta_v);
   printf("get Parameters\n");
 
   for (int i = 0; i < lars.active_itr; i++)
-    printf("%d : %.3f\n", beta[i].id, beta[i].v);
+    printf("%d : %.3f\n", beta_id[i], beta_v[i]);
 
   for (int i = 0; i < lars.active_itr; i++) {
     for (int j = 0; j < D; j++)
-      y[j] -= Xt[beta[i].id * D + j] * beta[i].v;
+      y[j] -= Xt[beta_id[i] * D + j] * beta_v[i];
   }
   Real sqr_error = Real(0.0);
   for (int j = 0; j < D; j++)
