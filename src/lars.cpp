@@ -43,7 +43,11 @@ void Lars::set_y(const Real *y_in) {
   memset(L, 0, active_size * active_size * sizeof(Real));
 
   timer.start(INIT_CORRELATION);
-  mvm(Xt, false, y, c, K, D);
+  for (int i = 0; i < K; i++) {
+    for (int j = 0; j < D; j++) {
+      c[i] += Xt[i * D + j] * y[j];
+    }
+  }
   timer.end(INIT_CORRELATION);
 }
 
@@ -89,7 +93,10 @@ bool Lars::iterate() {
   // new active row to add to gram matrix of active set
   timer.start(UPDATE_GRAM_MATRIX);
   for (int i = 0; i <= active_itr; ++i) {
-    L[active_itr*active_size + i] = dot(Xt + cur * D, Xt + beta_id[i] * D, D);
+    L[active_itr * active_size + i] = 0;
+    for (int j = 0; j < D; j++) {
+      L[active_itr * active_size + i] += Xt[cur * D + j] * Xt[beta_id[i] * D + j];
+    }
   }
   timer.end(UPDATE_GRAM_MATRIX);
 
@@ -128,13 +135,19 @@ bool Lars::iterate() {
   timer.start(GET_U);// Fuse GET_W
   for (int i = 0; i <= active_itr; ++i) {
 		w[i] *= AA;
-    axpy(w[i], &Xt[beta_id[i] * D], u, D);
+    for (int j = 0; j < D; j++) {
+      u[j] += w[i] * Xt[beta_id[i] * D + j];
+    }
   }
   timer.end(GET_U);
 
   // a = X' * u
   timer.start(GET_A);
-  mvm(Xt, false, u, a, K, D);
+  for (int i = 0; i < K; i++) {
+    for (int j = 0; j < D; j++) {
+      a[i] += Xt[i * D + j] * u[j];
+    }
+  }
   timer.end(GET_A);
 
 
@@ -237,7 +250,9 @@ inline Real Lars::compute_lambda() {
   // compute X'*(y - X*beta)
   Real max_lambda = Real(0.0);
   for (int i = 0; i < K; ++i) {
-    max_lambda = fmax(max_lambda, fabs(dot(Xt + i * D, tmp, D)));
+    Real lambda = 0;
+    for (int j = 0; j < D; j++) lambda += Xt[i * D + j] * tmp[j];
+    max_lambda = fmax(max_lambda, fabs(lambda));
   }
   return max_lambda;
 }
