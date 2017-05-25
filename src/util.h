@@ -67,7 +67,7 @@ inline void prepare_Xt(const int D, const int K, const bool normalize, T *Xt) {
   for (int j = 0, k = 0; j < K; j++) {
     T sum = T(0);
     T sum2 = T(0);
-    for (int i=0;i<D;i++,k++) {
+    for (int i = 0; i < D; i++, k++) {
       T v = normalRand<T>();
       Xt[k] = v;
       sum += v;
@@ -76,7 +76,7 @@ inline void prepare_Xt(const int D, const int K, const bool normalize, T *Xt) {
     if (normalize) {
       T std = sqrt(sum2 - sum*sum/T(D));
       k -= D;
-      for (int i=0;i<D;i++,k++) {
+      for (int i = 0; i < D; i++, k++) {
          Xt[k] = (Xt[k] - sum/T(D))/std;
       }
     }
@@ -102,15 +102,15 @@ inline void prepare_Beta(const int K, const int r, T *beta) {
   }
 }
 
-inline Real get_square_error(const Real *Xt, const Real *beta, const Real *y, const int size) {
-    Real *y_h = (Real*) calloc(size, sizeof(Real));
+inline Real get_square_error(const Real *Xt, const Real *beta, const Real *y, const int D, const int K) {
+    Real *y_h = (Real*) calloc(D, sizeof(Real));
     Real sqr_error = 0.0;
-    for (int i = 0; i < size; i++) {
-      for (int j = 0; j < size; j++) {
-        y_h[j] += Xt[i * size + j] * beta[i];
-      }   
+    for (int i = 0; i < K; i++) {
+      for (int j = 0; j < D; j++) {
+        y_h[j] += Xt[i * D + j] * beta[i];
+      }
     }
-    for (int i = 0; i < size; i++) 
+    for (int i = 0; i < D; i++)
         sqr_error += (y_h[i] - y[i]) * (y_h[i] - y[i]);
     free(y_h);
     return sqr_error;

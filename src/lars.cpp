@@ -60,7 +60,6 @@ bool Lars::iterate() {
   }
   timer.end(GET_ACTIVE_IDX);
 
-
   // All remainging C are 0
   if (cur == -1) return false;
 
@@ -211,6 +210,7 @@ void Lars::solve() {
 
     if (lambda_new > lambda) {
       lambda_old = lambda_new;
+      //printf("lambda = %.3f\n", lambda_old);
       memcpy(beta_old, beta, active_itr * sizeof(Idx));
     } else {
       Real factor = (lambda_old - lambda) / (lambda_old - lambda_new);
@@ -232,7 +232,7 @@ void Lars::getParameters(Idx** beta_out) const {
 }
 
 void Lars::getParameters(Real* beta_out) const {
-  memset(beta_out, 0, D * sizeof(Real));
+  memset(beta_out, 0, K * sizeof(Real));
   for (int i = 0; i < active_itr; i++) {
     beta_out[beta[i].id] = beta[i].v;
   }

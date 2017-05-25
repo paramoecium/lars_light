@@ -58,11 +58,11 @@ int measure(const int D, const int K, Real *Xt, Real *y, Real *beta, Real *beta_
 
   #ifdef VERIFY
     lars.getParameters(beta_h);
-    Real sqr_err = get_square_error(Xt, beta_h, y, K);
-    if (sqr_err > 1e-5 or sqr_err != sqr_err) 
+    Real sqr_err = get_square_error(Xt, beta_h, y, D, K);
+    if (sqr_err > 1e-5 or sqr_err != sqr_err)
       printf("\nVALIDATION FAILED: get error %.3f in lars with lambda %.3f\n\n", sqr_err, lambda);
   #endif
-  
+
   return num_runs;
 }
 
@@ -71,7 +71,7 @@ Real *beta) {
   prepare_Xt(D, K, true, Xt);
   prepare_Beta(K, 1, beta);
   memset(y, 0, sizeof(Real) * D);
-  
+
   for (int i = 0; i < K; i++) {
     axpy(beta[i], &Xt[i * D], y, D);
   }
@@ -81,7 +81,7 @@ Real *beta) {
 int main() {
   const int Max_D = 1 << 11, Max_K = 2 * Max_D;
   //const int Max_D = 600, Max_K = 600;
-  Real lambda = 0;
+  Real lambda = 0.0;
   Timer timer(END_ITR);
 
   Real *Xt = (Real*) malloc(sizeof(Real) * Max_D * Max_K);
