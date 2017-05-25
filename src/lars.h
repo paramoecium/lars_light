@@ -20,7 +20,8 @@ struct Lars {
 
   const Real *Xt; //a KxD matrix, transpose of X;
   const Real *y; //a Dx1 vector
-  Idx *beta, *beta_old; // current beta and old beta solution [Not sorted]
+  int *beta_id, *beta_old_id;
+  Real *beta_v, *beta_old_v;
 
   int *active; // active[i] = position beta of active param or -1
   Real *c; //
@@ -54,7 +55,7 @@ struct Lars {
 
 //  void calculateParameters();
 
-  void getParameters(Idx** beta_out) const; // get final beta
+  void getParameters(int** beta_out_id, Real** beta_out_v) const; // get final beta
 
   void getParameters(Real* beta_out) const;
 
