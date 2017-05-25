@@ -79,7 +79,7 @@ Real *beta) {
 }
 
 int main() {
-  const int Max_D = 1 << 11, Max_K = 1 << 11;
+  const int Max_D = 1 << 11, Max_K = 2 * Max_D;
   //const int Max_D = 600, Max_K = 600;
   Real lambda = 0;
   Timer timer(END_ITR);
@@ -90,9 +90,9 @@ int main() {
   Real *beta_h = (Real*) malloc(sizeof(Real) * Max_K);
 
   for (int i = 1 << 7; i <= Max_D; i += (1<<7)) {
-    printf("\nD = %d, K = %d\n", i , i);
+    printf("\nD = %d, K = %d\n", i , 2 * i);
     timer.reset();
-    set_value(i, i, Xt, y, beta);
-    int num_runs = measure(i, i, Xt, y, beta, beta_h, lambda, timer);
+    set_value(i, 2 * i, Xt, y, beta);
+    int num_runs = measure(i, 2 * i, Xt, y, beta, beta_h, lambda, timer);
   }
 }
