@@ -83,11 +83,16 @@ int main() {
   //const int Max_D = 600, Max_K = 600;
   Real lambda = 0;
   Timer timer(END_ITR);
-
+  /*
   Real *Xt = (Real*) malloc(sizeof(Real) * Max_D * Max_K);
   Real *y = (Real*) malloc(sizeof(Real) * Max_D);
   Real *beta = (Real*) malloc(sizeof(Real) * Max_K);
   Real *beta_h = (Real*) malloc(sizeof(Real) * Max_K);
+  */
+  Real *Xt = (Real*) _mm_malloc(sizeof(Real) * Max_D * Max_K, 4*sizeof(Real));
+  Real *y = (Real*) _mm_malloc(sizeof(Real) * Max_D, 4*sizeof(Real));
+  Real *beta = (Real*) _mm_malloc(sizeof(Real) * Max_K, 4*sizeof(Real));
+  Real *beta_h = (Real*) _mm_malloc(sizeof(Real) * Max_K, 4*sizeof(Real));
 
   for (int i = 1 << 7; i <= Max_D; i += (1<<7)) {
     printf("\nD = %d, K = %d\n", i , i);

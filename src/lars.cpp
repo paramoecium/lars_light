@@ -12,6 +12,7 @@ Lars::Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in, Timer &timer_i
 
   // Initializing
   active_size = fmin(K, D);
+  /*
   active = (int*) malloc(K * sizeof(int));
 
   c = (Real*) calloc(K, sizeof(Real));
@@ -20,6 +21,14 @@ Lars::Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in, Timer &timer_i
   a = (Real*) calloc(K, sizeof(Real));
   L = (Real*) calloc(active_size * active_size, sizeof(Real));
   tmp = (Real*) calloc((K>D?K:D), sizeof(Real));
+  */
+  active = (int*) _mm_malloc(K * sizeof(int),4*sizeof(int));
+  c = (Real*) _mm_malloc(K * sizeof(Real),4*sizeof(Real));
+  w = (Real*) _mm_malloc(active_size * sizeof(Real), 4*sizeof(Real));
+  u = (Real*) _mm_malloc(D*sizeof(Real), 4*sizeof(Real));
+  a = (Real*) _mm_malloc(K*sizeof(Real), 4*sizeof(Real));
+  L = (Real*) _mm_malloc(active_size * active_size*sizeof(Real), 4*sizeof(Real));
+  tmp = (Real*) _mm_malloc((K>D?K:D)*sizeof(Real), 4*sizeof(Real));
 }
 
 void Lars::set_y(const Real *y_in) {
