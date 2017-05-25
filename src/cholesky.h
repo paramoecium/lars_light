@@ -35,7 +35,7 @@ target = _mm256_add_pd(tmp1, tmp2);\
 
 const Real EPSILON = 1e-9;
 const int VEC_SIZE = 4;
-
+const int B = 32; //block size;
 /*
 1.
 X'X = LL', L is a n x n matrix in N x N memory
@@ -54,17 +54,25 @@ inline void update_cholesky_n_solve(Real *L, Real *w, const int n, const int N,
   Real tmp_arr[2 * VEC_SIZE];
   Real sum_s1, sum_s2;
 
-  int i, k;
-
-  for (i = 0; i <= n; ++i) {
-    L(n, i) = 0.0;
-    for (int k = 0; k < D; k++) {
-      L(n, i) += Xt[cur * D + k] * Xt[beta[i].id * D + k];
+  int i, k, b;
+  for (b = 0; b + B <= n; b += B) {
+    for (i = b; i < b + B; i++) {
+      L(n, i) = 0.0;
+      for (int k = 0; k < D; k++) {
+        L(n, i) += Xt[cur * D + k] * Xt[beta[i].id * D + k];
+      }
+      sum_s1 = 0.0, sum_s2 = 0.0;
+      for (k = 0; k < i; ++k) {
+        sum_s1 += L(i, k) * L(n, k);
+        sum_s2 += L(i, k) * w[k];
+      }
+      L(n, i) = (L(n, i) - sum_s1) / L(i, i);
+      w[i] = (w[i] - sum_s2) / L(i, i);
     }
   }
-  
+  /* finish the remaining triangle */
   /* solve (L^-1)X'v and (L^-1)w with Gaussian elimination */
-  for (i = 0; i < n; ++i) {
+  for (i = b; i < n; i++) {
     sum_v1 = _mm256_setzero_pd();
     sum_v2 = _mm256_setzero_pd();
     sum_v3 = _mm256_setzero_pd();
@@ -73,6 +81,10 @@ inline void update_cholesky_n_solve(Real *L, Real *w, const int n, const int N,
     sum_v6 = _mm256_setzero_pd();
     sum_v7 = _mm256_setzero_pd();
     sum_v8 = _mm256_setzero_pd();
+    L(n, i) = 0.0;
+    for (int k = 0; k < D; k++) {
+      L(n, i) += Xt[cur * D + k] * Xt[beta[i].id * D + k];
+    }
     for (k = 0; k <= i - 16; k += 16) {
       Real *L_i_k = &L(i, k);
       Real *L_n_k = &L(n, k);
@@ -108,6 +120,7 @@ inline void update_cholesky_n_solve(Real *L, Real *w, const int n, const int N,
     L(n, i) = (L(n, i) - sum_s1) / L(i, i);
     w[i] = (w[i] - sum_s2) / L(i, i);
   }
+
   /* compute the lower right entry of L and solve the last element of (L^-1)w */
   sum_v1 = _mm256_setzero_pd();
   sum_v2 = _mm256_setzero_pd();
@@ -148,6 +161,13 @@ inline void update_cholesky_n_solve(Real *L, Real *w, const int n, const int N,
     sum_s1 += L(n, k) * L(n, k);
     sum_s2 += L(n, k) * w[k];
   }
+
+
+  L(n, n) = 0.0;
+  for (k = 0; k < D; k++) {
+    L(n, n) += Xt[cur * D + k] * Xt[beta[n].id * D + k];
+  }
+
   L(n, n) = sqrt(fmax(L(n, n) - sum_s1, EPSILON));
   w[n] = (w[n] - sum_s2) / L(n, n);
 
