@@ -16,13 +16,13 @@ Lars::Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in, Timer &timer_i
   active_size = fmin(K, D);
   active = (int*) malloc(K * sizeof(int));
 
+	sgn = (Real*) calloc(active_size, sizeof(Real));
   c = (Real*) calloc(K, sizeof(Real));
   sgn = (Real*) calloc(active_size, sizeof(Real));
   w = (Real*) calloc(active_size, sizeof(Real));
-	sgn = (Real*) calloc(active_size, sizeof(Real));
+  L = (Real*) calloc(active_size * active_size, sizeof(Real));
   u = (Real*) calloc(D, sizeof(Real));
   a = (Real*) calloc(K, sizeof(Real));
-  L = (Real*) calloc(active_size * active_size, sizeof(Real));
   tmp = (Real*) calloc((K>D?K:D), sizeof(Real));
 
 	gamma = 0.0;
@@ -139,7 +139,7 @@ bool Lars::iterate() {
   if (active_itr < active_size) {
     print("C=%.3f AA=%.3f\n", C, AA);
     for (int i = 0; i < K; i++) {
-      if (active[i] != -1) continue;
+      if (active[i] >= 0) continue;
       Real t1 = (C - c[i]) / (AA - a[i]);
       Real t2 = (C + c[i]) / (AA + a[i]);
       print("%d : t1 = %.3f, t2 = %.3f\n", i, t1, t2);
@@ -182,7 +182,6 @@ void Lars::solve() {
     } else {
       Real factor = (lambda_old - lambda) / (lambda_old - lambda_new);
       for (int j = 0; j < active_itr; j++) {
-//        beta[j].v = beta_old[j].v * (1.f - factor) + factor * beta[j].v;
         beta_v[j] = beta_old_v[j] + factor * (beta_v[j] - beta_old_v[j]);
       }
       break;
