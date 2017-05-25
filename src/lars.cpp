@@ -74,17 +74,6 @@ bool Lars::iterate() {
 
   // calculate Xt_A * Xcur, Matrix * vector
   // new active row to add to gram matrix of active set
-  timer.start(UPDATE_GRAM_MATRIX);
-  for (int i = 0; i <= active_itr; ++i) {
-    L[active_itr*active_size + i] = dot(Xt + cur * D, Xt + beta[i].id * D, D);
-  }
-  timer.end(UPDATE_GRAM_MATRIX);
-
-
-  timer.start(UPDATE_CHOLESKY);
-  update_cholesky(L, active_itr, active_size);
-  timer.end(UPDATE_CHOLESKY);
-
 
   // set w[] = sign(c[])
   timer.start(INITIALIZE_W);
@@ -94,11 +83,15 @@ bool Lars::iterate() {
   timer.end(INITIALIZE_W);
 
 
-  // w = R\(R'\s)
-  // w is now storing sum of all rows? in the inverse of G_A
-  timer.start(BACKSOLVE_CHOLESKY);
-  backsolve(L, w, w, active_itr+1, active_size);
-  timer.end(BACKSOLVE_CHOLESKY);
+  timer.start(UPDATE_GRAM_MATRIX);
+  for (int i = 0; i <= active_itr; ++i) {
+    L[active_itr*active_size + i] = dot(Xt + cur * D, Xt + beta[i].id * D, D);
+  }
+  timer.end(UPDATE_GRAM_MATRIX);
+
+  timer.start(FUSED_CHOLESKY);
+  update_cholesky_n_solve(L, w, w, active_itr, active_size);
+  timer.end(FUSED_CHOLESKY);
 
 
   // AA is is used to finalize w[]
