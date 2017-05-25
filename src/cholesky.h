@@ -47,41 +47,56 @@ Solve for w in (X'X)w = (LL')w = v, where w can be v
 */
 inline void backsolve(const Real *L, Real *w, const Real *v,
                       const int n, const int N) {
+  int i, k;
+  Real sum;
+  /* solve L^-1 with Gaussian elimination */
+  for (i = 0; i < n; i++) {
+    sum = 0.0;
+    for (k = 0; k < i; ++k) {
+      sum += L[i * N + k] * w[k];
+    }
+    w[i] = (v[i] - sum) / L[i * N + i];
+  }
+  /* solve (L')^-1 with Gaussian elimination */
+  for (i = n-1; i>= 0; i--) {
+    w[i] /= L[i * N + i];
+    for (k = 0; k < i; k++) {
+      w[k] -= L[i * N + k] * w[i];
+    }
+  }
 }
 //active_itr, active_size
 //active_itr+1, active_size
 
-inline void update_cholesky_n_solve(Real* L, Real *w, const Real *v,
-                                    const int j, const int N) {
-    Real sum = 0.0;
+inline void update_cholesky_n_solve(Real *L, Real *w, const int n, const int N) {
+    Real sum;
     int i, k;
     /* solve L^-1 with Gaussian elimination */
-    for (i = 0; i < j; ++i) {
+    for (i = 0; i < n; ++i) {
       sum = 0.0;
       for (k = 0; k < i; ++k) {
-        sum += L[i * N + k] * L[j * N + k];
+        sum += L[i * N + k] * L[n * N + k];
       }
-      L[j * N + i] = (L[j * N + i] - sum) / L[i * N + i];
+      L[n * N + i] = (L[n * N + i] - sum) / L[i * N + i];
     }
     /* compute the lower right entry */
-    sum = L[j * N + j];
-    for (k = 0; k < j; k++) {
-      sum -= L[j * N + k] * L[j * N + k];
+    sum = L[n * N + n];
+    for (k = 0; k < n; k++) {
+      sum -= L[n * N + k] * L[n * N + k];
     }
     if (sum <= 0.0) sum = EPSILON;
-    L[j * N + j] = sqrt(sum);
-    const int n = j + 1;
+    L[n * N + n] = sqrt(sum);
 
     /* solve L^-1 with Gaussian elimination */
-    for (i = 0; i < n; i++) {
+    for (i = 0; i <= n; i++) {
       sum = 0.0;
       for (k = 0; k < i; ++k) {
         sum += L[i * N + k] * w[k];
       }
-      w[i] = (v[i] - sum) / L[i * N + i];
+      w[i] = (w[i] - sum) / L[i * N + i];
     }
     /* solve (L')^-1 with Gaussian elimination */
-    for (i = n-1; i>= 0; i--) {
+    for (i = n; i>= 0; i--) {
       w[i] /= L[i * N + i];
       for (k = 0; k < i; k++) {
         w[k] -= L[i * N + k] * w[i];
