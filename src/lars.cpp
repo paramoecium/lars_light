@@ -43,7 +43,13 @@ void Lars::set_y(const Real *y_in) {
   memset(a, 0, K * sizeof(Real));
   memset(L, 0, active_size * active_size * sizeof(Real));
 
-  mvm(Xt, false, y, c, K, D);
+  timer.start(INIT_CORRELATION);
+  for (int i = 0; i < K; i++) {
+    for (int j = 0; j < D; j++) {
+      c[i] += Xt[i * D + j] * y[j];
+    }
+  }
+  timer.end(INIT_CORRELATION);
 }
 
 Lars::~Lars() {
@@ -92,19 +98,6 @@ bool Lars::iterate() {
   timer.end(FUSED_CHOLESKY);
 
 
-  // AA is is used to finalize w[]
-  // AA = 1 / sqrt(sum of all entries in the inverse of G_A);
-  timer.start(GET_AA);
-  Real AA = 0.0;
-  for (int i = 0; i <= active_itr; ++i) {
-    AA += w[i] * sign(c[beta_id[i]]);
-  }
-  AA = 1.0 / sqrt(AA);
-  print("AA: %.3f\n", AA);
-  timer.end(GET_AA);
-
->>>>>>> break Idx structure into two arrays
-
   // get the actual w[]
   // get a = X' X_a w
   // Now do X' (X_a w)
@@ -115,12 +108,20 @@ bool Lars::iterate() {
   timer.start(GET_U);// Fuse GET_W
   for (int i = 0; i <= active_itr; ++i) {
 		w[i] *= AA;
-    axpy(w[i], &Xt[beta_id[i] * D], u, D);
+    for (int j = 0; j < D; j++) {
+      u[j] += w[i] * Xt[beta_id[i] * D + j];
+    }
   }
   timer.end(GET_U);
 
   // a = X' * u
-  mvm(Xt, false, u, a, K, D);
+  timer.start(GET_A);
+  for (int i = 0; i < K; i++) {
+    for (int j = 0; j < D; j++) {
+      a[i] += Xt[i * D + j] * u[j];
+    }
+  }
+  timer.end(GET_A);
 
 
   print("u : ");
@@ -215,7 +216,9 @@ inline Real Lars::compute_lambda() {
   // compute X'*(y - X*beta)
   Real max_lambda = Real(0.0);
   for (int i = 0; i < K; ++i) {
-    max_lambda = fmax(max_lambda, fabs(dot(Xt + i * D, tmp, D)));
+    Real lambda = 0;
+    for (int j = 0; j < D; j++) lambda += Xt[i * D + j] * tmp[j];
+    max_lambda = fmax(max_lambda, fabs(lambda));
   }
   return max_lambda;
 }

@@ -6,7 +6,6 @@
 #include <cstring>
 
 #include "util.h"
-#include "mathOperations.h"
 #include "cholesky.h"
 #include "timer.h"
 
