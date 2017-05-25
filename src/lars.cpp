@@ -45,7 +45,7 @@ Lars::~Lars() {
 }
 
 bool Lars::iterate() {
-  if (active_itr > active_size) return false;
+  if (active_itr >= active_size) return false;
 
   Real C = 0.0;
   int cur = -1;
