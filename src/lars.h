@@ -26,11 +26,14 @@ struct Lars {
   Real *c; //
   Real *sgn;
   Real *w; // sign c[active_set]
+  Real *sgn;
   Real *u; // unit direction of each iteration
   Real *a; // store Xt * u
   Real *L; // lower triangular matrix of the gram matrix of X_A (pxp)
 
   Real lambda, lambda_new, lambda_old;
+
+  Real gamma;
 
   Real *tmp; // temporary storage for active correlations
 

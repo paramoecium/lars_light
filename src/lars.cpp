@@ -17,10 +17,13 @@ Lars::Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in, Timer &timer_i
   c = (Real*) calloc(K, sizeof(Real));
   sgn = (Real*) calloc(active_size, sizeof(Real));
   w = (Real*) calloc(active_size, sizeof(Real));
+	sgn = (Real*) calloc(K, sizeof(Real));
   u = (Real*) calloc(D, sizeof(Real));
   a = (Real*) calloc(K, sizeof(Real));
-  L = (Real*) calloc(active_size * active_size, sizeof(Real)); //TODO smaller size
-  tmp = (Real*) calloc(D, sizeof(Real));
+  L = (Real*) calloc(active_size * active_size, sizeof(Real));
+  tmp = (Real*) calloc((K>D?K:D), sizeof(Real));
+
+	gamma = 0.0;
 }
 
 void Lars::set_y(const Real *y_in) {
@@ -46,36 +49,37 @@ Lars::~Lars() {
 bool Lars::iterate() {
   if (active_itr >= active_size) return false;
 
-  Real C = 0.0;
-  int cur = -1;
-  for (int i = 0; i < K; ++i) {
-    print("c[%d]=%.3f active[i]=%d\n", i, c[i], active[i]);
-    if (active[i] != -1) continue;
-    if (fabs(c[i]) > C) {
-      cur = i;
-      C = fabs(c[i]);
-    }
-  }
+	Real C = 0.0;
+	int cur = -1;
+	for (int i = 0; i < K; ++i) {
+		timer.start(UPDATE_CORRELATION);
+		c[i] -= gamma * a[i];
+		timer.end(UPDATE_CORRELATION);
+
+		timer.start(GET_ACTIVE_IDX);
+		if (active[i] < 0 and fabs(c[i]) > C) {
+			cur = i;
+			C = fabs(c[i]);
+			timer.end(GET_ACTIVE_IDX);
+		} else {
+			timer.start(INITIALIZE_W);
+			sgn[active[i]] = sign(c[i]);
+			timer.end(INITIALIZE_W);
+		}
+	}
 
   // All remainging C are 0
   if (cur == -1) return false;
 
-  print("Active set size is now %d\n", active_itr + 1);
-  print("Activate %d column with %.3f value\n", cur, C);
-
-  print("active[%d]=%d cur=%d D=%d\n", active_itr, active[cur], cur, D);
+  assert(active[cur] == -1 and active_itr < D);
 
   active[cur] = active_itr;
   beta[active_itr] = Idx(cur, 0);
+	sgn[active_itr] = sign(c[cur]);
 
 
   // calculate Xt_A * Xcur, Matrix * vector
   // new active row to add to gram matrix of active set
-
-  // set w[] = sign(c[])
-  for (int i = 0; i <= active_itr; ++i) {
-    sgn[i] = sign(c[beta[i].id]);
-  }
 
   timer.start(FUSED_CHOLESKY);
   Real AA = update_cholesky_n_solve(L, w, sgn, active_itr, active_size, Xt, cur, beta, D);
@@ -85,13 +89,6 @@ bool Lars::iterate() {
   // AA is is used to finalize w[]
   // AA = 1 / sqrt(sum of all entries in the inverse of G_A);
   print("AA: %.3f\n", AA);
-  for (int i = 0; i <= active_itr; ++i) {
-    w[i] *= AA;
-  }
-  print("w solved :");
-  for (int i = 0; i < D; ++i) print("%.3f ", w[i]);
-  print("\n");
-
   // get a = X' X_a w
   // Now do X' (X_a w)
   // can store a X' X_a that update only some spaces when adding new col to
@@ -99,13 +96,24 @@ bool Lars::iterate() {
   // Will X'(X_a w) be better? // more
   // X' (X_a w) more flops less space?
   // (X' X_a) w less flops more space?
+{
+//  timer.start(GET_W);
+//  for (int i = 0; i <= active_itr; ++i) {
+//    w[i] *= AA;
+//  }
+//  print("w solved :");
+//  for (int i = 0; i < D; ++i) print("%.3f ", w[i]);
+//  print("\n");
+//  timer.end(GET_W);
+
   memset(a, 0, K*sizeof(Real));
   memset(u, 0, D*sizeof(Real));
   // u = X_a * w
   for (int i = 0; i <= active_itr; ++i) {
+		w[i] *= AA;
     axpy(w[i], &Xt[beta[i].id * D], u, D);
   }
-
+}
 
   // a = X' * u
   mvm(Xt, false, u, a, K, D);
@@ -120,7 +128,8 @@ bool Lars::iterate() {
   print("\n");
 
 
-  Real gamma = C / AA;
+  timer.start(GET_GAMMA);
+  gamma = C / AA;
   int gamma_id = cur;
   if (active_itr < active_size) {
     print("C=%.3f AA=%.3f\n", C, AA);
@@ -139,10 +148,6 @@ bool Lars::iterate() {
   // add gamma * w to beta
   for (int i = 0; i <= active_itr; ++i)
     beta[i].v += gamma * w[i];
-
-  // update correlation with a
-  for (int i = 0; i < K; ++i)
-    c[i] -= gamma * a[i];
 
   print("beta: ");
   for (int i = 0; i <= active_itr; ++i) print("%d %.3f ", beta[i].id, beta[i].v);
