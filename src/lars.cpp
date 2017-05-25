@@ -19,7 +19,7 @@ Lars::Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in, Timer &timer_i
   u = (Real*) calloc(D, sizeof(Real));
   a = (Real*) calloc(K, sizeof(Real));
   L = (Real*) calloc(active_size * active_size, sizeof(Real));
-  tmp = (Real*) calloc((K>D?K:D), sizeof(Real));
+  tmp = (Real*) calloc(D, sizeof(Real));
 }
 
 void Lars::set_y(const Real *y_in) {
@@ -68,7 +68,6 @@ bool Lars::iterate() {
   print("Activate %d column with %.3f value\n", cur, C);
 
   print("active[%d]=%d cur=%d D=%d\n", active_itr, active[cur], cur, D);
-  assert(active[cur] == -1 and active_itr < D);
 
   active[cur] = active_itr;
   beta[active_itr] = Idx(cur, 0);
@@ -81,7 +80,7 @@ bool Lars::iterate() {
     L[active_itr*active_size + i] = dot(Xt + cur * D, Xt + beta[i].id * D, D);
   }
   timer.end(UPDATE_GRAM_MATRIX);
-  
+
 
   timer.start(UPDATE_CHOLESKY);
   update_cholesky(L, active_itr, active_size);
@@ -227,28 +226,6 @@ void Lars::solve() {
   }
   print("LARS DONE\n");
 }
-
-
-//void Lars::calculateParameters() {
-//  for (int i = 0; i < active_itr; i++) {
-//    print("beta[%d] = %.3f\n", beta[i].id, beta[i].v);
-//  }
-//
-//  mvm(Xt, false, y, tmp, D, K);
-//
-//  Real *tmp2 = (Real*) calloc(active_itr, sizeof(Real));
-//  for (int i = 0; i < active_itr; ++i) {
-//    tmp2[i] = tmp[beta[i].id];
-//  }
-//  backsolve(L, tmp2, tmp2, active_itr, active_size);
-//
-//  for (int i = 0; i < active_itr; ++i) {
-//    beta[i].id = beta[i].id;
-//    beta[i].v = tmp2[i];
-//  }
-//
-//  free(tmp2);
-//}
 
 void Lars::getParameters(Idx** beta_out) const {
   *beta_out = beta;
