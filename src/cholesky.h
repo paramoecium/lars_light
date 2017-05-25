@@ -10,98 +10,46 @@
 
 const Real EPSILON = 1e-9;
 
-/////////////
-// Methods //
-/////////////
-
 /*
+1.
 X'X = LL', L is a n x n matrix in N x N memory
-Update cholesky decomposition L of the gram matrix X'X
-after including new vector j with Gaussian elimination
-L[j * N : j * N + N] stores the inner product of the vector j and all vectors
+Update cholesky decomposition L with Gaussian elimination of the gram matrix X'X
+after including new vector
+L[n * N : n * N + N] stores the inner product of the new vector and the other vectors
 in the active set(including itself)
+2.
+Compute ((X'X)^-1)w by solving (X'X)w = (LL')w = w
 */
-inline void update_cholesky(Real* L, const int j, const int N) {
-  Real sum = 0.0;
-  Real eps_small = EPSILON;
+
+inline void update_cholesky_n_solve(Real *L, Real *w, const int n, const int N) {
+  Real sum0, sum1;
   int i, k;
-  /* solve L^-1 with Gaussian elimination */
-  for (i = 0; i < j; ++i) {
-    sum = 0.0;
+  /* solve (L^-1)X'v and (L^-1)w with Gaussian elimination */
+  for (i = 0; i < n; ++i) {
+    sum0 = 0.0, sum1 = 0.0;
     for (k = 0; k < i; ++k) {
-      sum += L[i * N + k] * L[j * N + k];
+      sum0 += L[i * N + k] * L[n * N + k];
+      sum1 += L[i * N + k] * w[k];
     }
-    L[j * N + i] = (L[j * N + i] - sum) / L[i * N + i];
+    L[n * N + i] = (L[n * N + i] - sum0) / L[i * N + i];
+    w[i] = (w[i] - sum1) / L[i * N + i];
   }
-  /* compute the lower right entry */
-  sum = L[j * N + j];
-  for (k = 0; k < j; k++) {
-    sum -= L[j * N + k] * L[j * N + k];
+  /* compute the lower right entry of L and solve the last element of (L^-1)w */
+  sum0 = 0.0;
+  sum1 = 0.0;
+  for (k = 0; k < n; k++) {
+    sum0 += L[n * N + k] * L[n * N + k];
+    sum1 += L[n * N + k] * w[k];
   }
-  if (sum <= 0.0) sum = eps_small;
-  L[j * N + j] = sqrt(sum);
-}
-/*
-X'X = LL', L is a n x n matrix in N x N memory, w and v are vectors of length n
-Solve for w in (X'X)w = (LL')w = v, where w can be v
-*/
-inline void backsolve(const Real *L, Real *w, const Real *v,
-                      const int n, const int N) {
-  int i, k;
-  Real sum;
-  /* solve L^-1 with Gaussian elimination */
-  for (i = 0; i < n; i++) {
-    sum = 0.0;
-    for (k = 0; k < i; ++k) {
-      sum += L[i * N + k] * w[k];
-    }
-    w[i] = (v[i] - sum) / L[i * N + i];
-  }
-  /* solve (L')^-1 with Gaussian elimination */
-  for (i = n-1; i>= 0; i--) {
+  L[n * N + n] = sqrt(fmax(L[n * N + n] - sum0, EPSILON));
+  w[n] = (w[n] - sum1) / L[n * N + n];
+
+  /* solve ((L')^-1)w with Gaussian elimination */
+  for (i = n; i>= 0; i--) {
     w[i] /= L[i * N + i];
     for (k = 0; k < i; k++) {
       w[k] -= L[i * N + k] * w[i];
     }
   }
-}
-//active_itr, active_size
-//active_itr+1, active_size
-
-inline void update_cholesky_n_solve(Real *L, Real *w, const int n, const int N) {
-    Real sum;
-    int i, k;
-    /* solve L^-1 with Gaussian elimination */
-    for (i = 0; i < n; ++i) {
-      sum = 0.0;
-      for (k = 0; k < i; ++k) {
-        sum += L[i * N + k] * L[n * N + k];
-      }
-      L[n * N + i] = (L[n * N + i] - sum) / L[i * N + i];
-    }
-    /* compute the lower right entry */
-    sum = L[n * N + n];
-    for (k = 0; k < n; k++) {
-      sum -= L[n * N + k] * L[n * N + k];
-    }
-    if (sum <= 0.0) sum = EPSILON;
-    L[n * N + n] = sqrt(sum);
-
-    /* solve L^-1 with Gaussian elimination */
-    for (i = 0; i <= n; i++) {
-      sum = 0.0;
-      for (k = 0; k < i; ++k) {
-        sum += L[i * N + k] * w[k];
-      }
-      w[i] = (w[i] - sum) / L[i * N + i];
-    }
-    /* solve (L')^-1 with Gaussian elimination */
-    for (i = n; i>= 0; i--) {
-      w[i] /= L[i * N + i];
-      for (k = 0; k < i; k++) {
-        w[k] -= L[i * N + k] * w[i];
-      }
-    }
-
 }
 #endif
