@@ -70,7 +70,7 @@ bool Lars::iterate() {
 			cur = i;
 			C = fabs(c[i]);
 			timer.end(GET_ACTIVE_IDX);
-		} else {
+		} else if (active[i] >= 0) {
 			timer.start(INITIALIZE_W);
 			sgn[active[i]] = sign(c[i]);
 			timer.end(INITIALIZE_W);
