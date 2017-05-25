@@ -16,8 +16,8 @@ Lars::Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in, Timer &timer_i
   active_size = fmin(K, D);
   active = (int*) malloc(K * sizeof(int));
 
-	sgn = (Real*) calloc(active_size, sizeof(Real));
   c = (Real*) calloc(K, sizeof(Real));
+	sgn = (Real*) calloc(active_size, sizeof(Real));
   w = (Real*) calloc(active_size, sizeof(Real));
   L = (Real*) calloc(active_size * active_size, sizeof(Real));
   u = (Real*) calloc(D, sizeof(Real));
