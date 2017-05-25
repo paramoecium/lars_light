@@ -2,7 +2,6 @@
 #define TIMER_ID_H
 
 enum TIMER_ID{
-  UPDATE_GRAM_MATRIX,
   FUSED_CHOLESKY,
   GET_AA,
 
@@ -10,7 +9,6 @@ enum TIMER_ID{
 };
 
 static const char *TIMER_ID_STR[] = {
-  "UPDATE_GRAM_MATRIX",
   "FUSED_CHOLESKY",
   "GET_AA",
 

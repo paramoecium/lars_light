@@ -76,13 +76,8 @@ bool Lars::iterate() {
     w[i] = sign(c[beta[i].id]);
   }
 
-
-  timer.start(UPDATE_GRAM_MATRIX);
-  update_gram_matrix(L, active_itr, active_size, Xt, cur, beta, D);
-  timer.end(UPDATE_GRAM_MATRIX);
-
   timer.start(FUSED_CHOLESKY);
-  update_cholesky_n_solve(L, w, active_itr, active_size);
+  update_cholesky_n_solve(L, w, active_itr, active_size, Xt, cur, beta, D);
   timer.end(FUSED_CHOLESKY);
 
 
