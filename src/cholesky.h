@@ -36,12 +36,6 @@ target = _mm256_add_pd(tmp1, tmp2);\
 const Real EPSILON = 1e-9;
 const int VEC_SIZE = 4;
 
-inline void update_gram_matrix(Real *L, const int active_itr, const int N,
-                               const Real *Xt, const int cur, const Idx *beta, const int D) {
-  for (int i = 0; i <= active_itr; ++i) {
-    L(active_itr, i) = dot(Xt + cur * D, Xt + beta[i].id * D, D);
-  }
-}
 /*
 1.
 X'X = LL', L is a n x n matrix in N x N memory
@@ -53,13 +47,22 @@ in the active set(including itself)
 Compute ((X'X)^-1)w by solving (X'X)w = (LL')w = w
 */
 
-inline void update_cholesky_n_solve(Real *L, Real *w, const int n, const int N) {
+inline void update_cholesky_n_solve(Real *L, Real *w, const int n, const int N,
+                  const Real *Xt, const int cur, const Idx *beta, const int D) {
   __m256d sum_v1, sum_v2, sum_v3, sum_v4, sum_v5, sum_v6, sum_v7, sum_v8;
   __m256d tmp0, tmp1, tmp2, tmp3; //for macros
   Real tmp_arr[2 * VEC_SIZE];
   Real sum_s1, sum_s2;
 
   int i, k;
+
+  for (i = 0; i <= n; ++i) {
+    L(n, i) = 0.0;
+    for (int k = 0; k < D; k++) {
+      L(n, i) += Xt[cur * D + k] * Xt[beta[i].id * D + k];
+    }
+  }
+  
   /* solve (L^-1)X'v and (L^-1)w with Gaussian elimination */
   for (i = 0; i < n; ++i) {
     sum_v1 = _mm256_setzero_pd();
