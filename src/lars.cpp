@@ -18,7 +18,7 @@ Lars::Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in, Timer &timer_i
   w = (Real*) calloc(active_size, sizeof(Real));
   u = (Real*) calloc(D, sizeof(Real));
   a = (Real*) calloc(K, sizeof(Real));
-  L = (Real*) calloc(active_size * active_size, sizeof(Real));
+  L = (Real*) calloc(active_size * active_size, sizeof(Real)); //TODO smaller size
   tmp = (Real*) calloc(D, sizeof(Real));
 }
 
@@ -78,9 +78,7 @@ bool Lars::iterate() {
 
 
   timer.start(UPDATE_GRAM_MATRIX);
-  for (int i = 0; i <= active_itr; ++i) {
-    L[active_itr*active_size + i] = dot(Xt + cur * D, Xt + beta[i].id * D, D);
-  }
+  update_gram_matrix(L, active_itr, active_size, Xt, cur, beta, D);
   timer.end(UPDATE_GRAM_MATRIX);
 
   timer.start(FUSED_CHOLESKY);
