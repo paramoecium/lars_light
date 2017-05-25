@@ -79,6 +79,7 @@ bool Lars::iterate() {
 	sgn[active_itr] = sign(c[cur]);
 
 
+{ //TODO: Fuse here
   // calculate Xt_A * Xcur, Matrix * vector
   // new active row to add to gram matrix of active set
   timer.start(UPDATE_GRAM_MATRIX);
@@ -110,36 +111,21 @@ bool Lars::iterate() {
   AA = 1.0 / sqrt(AA);
   print("AA: %.3f\n", AA);
   timer.end(GET_AA);
-
+}
 
   // get the actual w[]
   // get a = X' X_a w
   // Now do X' (X_a w)
-  // can store a X' X_a that update only some spaces when adding new col to
-  // activation set
-  // Will X'(X_a w) be better? // more
-  // X' (X_a w) more flops less space?
-  // (X' X_a) w less flops more space?
-{
-//  timer.start(GET_W);
-//  for (int i = 0; i <= active_itr; ++i) {
-//    w[i] *= AA;
-//  }
-//  print("w solved :");
-//  for (int i = 0; i < D; ++i) print("%.3f ", w[i]);
-//  print("\n");
-//  timer.end(GET_W);
 
   memset(a, 0, K*sizeof(Real));
   memset(u, 0, D*sizeof(Real));
   // u = X_a * w
-  timer.start(GET_U);
+  timer.start(GET_U);// Fuse GET_W
   for (int i = 0; i <= active_itr; ++i) {
 		w[i] *= AA;
     axpy(w[i], &Xt[beta[i].id * D], u, D);
   }
   timer.end(GET_U);
-}
 
   // a = X' * u
   timer.start(GET_A);
