@@ -15,6 +15,7 @@ Lars::Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in, Timer &timer_i
   active = (int*) malloc(K * sizeof(int));
 
   c = (Real*) calloc(K, sizeof(Real));
+  sgn = (Real*) calloc(active_size, sizeof(Real));
   w = (Real*) calloc(active_size, sizeof(Real));
   u = (Real*) calloc(D, sizeof(Real));
   a = (Real*) calloc(K, sizeof(Real));
@@ -73,28 +74,18 @@ bool Lars::iterate() {
 
   // set w[] = sign(c[])
   for (int i = 0; i <= active_itr; ++i) {
-    w[i] = sign(c[beta[i].id]);
+    sgn[i] = sign(c[beta[i].id]);
   }
 
   timer.start(FUSED_CHOLESKY);
-  update_cholesky_n_solve(L, w, active_itr, active_size, Xt, cur, beta, D);
+  Real AA = update_cholesky_n_solve(L, w, sgn, active_itr, active_size, Xt, cur, beta, D);
   timer.end(FUSED_CHOLESKY);
 
 
   // AA is is used to finalize w[]
   // AA = 1 / sqrt(sum of all entries in the inverse of G_A);
-  timer.start(GET_AA);
-  Real AA = 0.0;
-  for (int i = 0; i <= active_itr; ++i) {
-    AA += w[i] * sign(c[beta[i].id]);
-  }
-  AA = 1.0 / sqrt(AA);
   print("AA: %.3f\n", AA);
-  timer.end(GET_AA);
-
-
-  // get the actual w[]
-  for (int i = 0; i <= active_itr; ++i) {
+  for (int i = 0; i <= n; ++i) {
     w[i] *= AA;
   }
   print("w solved :");
