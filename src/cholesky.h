@@ -231,25 +231,52 @@ inline Real update_cholesky_n_solve(Real *L, Real *w, const Real *v, const int n
   Real AA = 0.0;
   /* solve ((L')^-1)w with Gaussian elimination */
   for (b_i = n; b_i - B >= -1; b_i -= B) {
-    /* pivot the triangle */
+    /* pivot the triangle, unroll2 */
     for (i = b_i; i > b_i - B; i--) {
       w[i] /= L(i, i);
       AA += w[i] * v[i];
-      for (k = i - 1; k > b_i - B; k--) {
+      for (k = b_i - B + 1; k <= i - 2 ; k += 2) {
+        w[k] -= L(i, k) * w[i];
+        w[k + 1] -= L(i, k + 1) * w[i];
+      }
+      for (; k < i ; k++) {
         w[k] -= L(i, k) * w[i];
       }
     }
     /* compute mvms (BxB)(Bx1) */
     for (b_k = b_i - B; b_k >= -1; b_k -= B) {
       for (i = b_i; i > b_i - B; i--) {
-        for (k = b_k; k > b_k - B; k--) {
-          w[k] -= L(i, k) * w[i];
+        __m256d w_i = _mm256_set1_pd(w[i]);
+        for (k = b_k - B + 1; k <= b_k - 4 * VEC_SIZE + 1; k += 4 * VEC_SIZE) {
+          Real *L_i_k = &L(i, k);
+          __m256d w_k = _mm256_load_pd(w + k);
+          __m256d w_k_4 = _mm256_load_pd(w + k + 4);
+          __m256d w_k_8 = _mm256_load_pd(w + k + 8);
+          __m256d w_k_12 = _mm256_load_pd(w + k + 12);
+          w_k = _mm256_fnmadd_pd(_mm256_load_pd(L_i_k), w_i, w_k);
+          w_k_4 = _mm256_fnmadd_pd(_mm256_load_pd(L_i_k + 4), w_i, w_k_4);
+          w_k_8 = _mm256_fnmadd_pd(_mm256_load_pd(L_i_k + 8), w_i, w_k_8);
+          w_k_12 = _mm256_fnmadd_pd(_mm256_load_pd(L_i_k + 12), w_i, w_k_12);
+          _mm256_store_pd(w + k, w_k);
+          _mm256_store_pd(w + k + 4, w_k_4);
+          _mm256_store_pd(w + k + 8, w_k_8);
+          _mm256_store_pd(w + k + 12, w_k_12);
         }
       }
     }
     /* finish the remaining rectangle */
     for (i = b_i; i > b_i - B; i--) {
-      for (; k >= 0; k--) {
+      __m256d w_i = _mm256_set1_pd(w[i]);
+      for (k = 0; k <= b_k - 2 * VEC_SIZE + 1; k += 2 * VEC_SIZE) { // less than B
+        Real *L_i_k = &L(i, k);
+        __m256d w_k = _mm256_load_pd(w + k);
+        __m256d w_k_4 = _mm256_load_pd(w + k + 4);
+        w_k = _mm256_fnmadd_pd(_mm256_load_pd(L_i_k), w_i, w_k);
+        w_k_4 = _mm256_fnmadd_pd(_mm256_load_pd(L_i_k + 4), w_i, w_k_4);
+        _mm256_store_pd(w + k, w_k);
+        _mm256_store_pd(w + k + 4, w_k_4);
+      }
+      for (; k <= b_k; k++) {
         w[k] -= L(i, k) * w[i];
       }
     }
@@ -258,7 +285,11 @@ inline Real update_cholesky_n_solve(Real *L, Real *w, const Real *v, const int n
   for (; i>= 0; i--) {
     w[i] /= L(i, i);
     AA += w[i] * v[i];
-    for (k = i - 1; k >= 0; k--) {
+    for (k = 0; k <= i - 2; k += 2) {
+      w[k] -= L(i, k) * w[i];
+      w[k + 1] -= L(i, k + 1) * w[i];
+    }
+    for (; k < i; k++) {
       w[k] -= L(i, k) * w[i];
     }
   }
