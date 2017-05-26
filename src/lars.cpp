@@ -70,9 +70,11 @@ bool Lars::iterate() {
 
   // calculate Xt_A * Xcur, Matrix * vector
   // new active row to add to gram matrix of active set
+  timer.start(UPDATE_GRAM_MATRIX);
   for (int i = 0; i <= active_itr; ++i) {
     L[active_itr*active_size + i] = dot(Xt + cur * D, Xt + beta[i].id * D, D);
   }
+  timer.end(UPDATE_GRAM_MATRIX);
 
 
   timer.start(UPDATE_CHOLESKY);
@@ -81,9 +83,11 @@ bool Lars::iterate() {
 
 
   // set w[] = sign(c[])
+  timer.start(INITIALIZE_W);
   for (int i = 0; i <= active_itr; ++i) {
     w[i] = sign(c[beta[i].id]);
   }
+  timer.end(INITIALIZE_W);
 
 
   // w = R\(R'\s)
@@ -95,21 +99,25 @@ bool Lars::iterate() {
 
   // AA is is used to finalize w[]
   // AA = 1 / sqrt(sum of all entries in the inverse of G_A);
+  timer.start(GET_AA);
   Real AA = 0.0;
   for (int i = 0; i <= active_itr; ++i) {
     AA += w[i] * sign(c[beta[i].id]);
   }
   AA = 1.0 / sqrt(AA);
   print("AA: %.3f\n", AA);
+  timer.end(GET_AA);
 
 
   // get the actual w[]
+  timer.start(GET_W);
   for (int i = 0; i <= active_itr; ++i) {
     w[i] *= AA;
   }
   print("w solved :");
   for (int i = 0; i < D; ++i) print("%.3f ", w[i]);
   print("\n");
+  timer.end(GET_W);
 
   // get a = X' X_a w
   // Now do X' (X_a w)
