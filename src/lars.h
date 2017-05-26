@@ -52,7 +52,6 @@ struct Lars {
   bool iterate();
 
 //  void calculateParameters();
-
   void getParameters(int** beta_out_id, Real** beta_out_v) const; // get final beta
 
   void getParameters(Real* beta_out) const;

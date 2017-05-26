@@ -9,7 +9,7 @@ int main() {
   // Initailize data
   int D, K;
   Real *Xt;
-  Real *y;
+  Real *y, *y_2;
   int *beta_id;
   Real *beta_v;
   Real lambda = 0.0;
