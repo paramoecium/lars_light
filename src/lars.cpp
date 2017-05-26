@@ -21,6 +21,7 @@ Lars::Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in, Timer &timer_i
 	sgn = (Real*) calloc(active_size, sizeof(Real));
   w = (Real*) calloc(active_size, sizeof(Real));
   L = (Real*) calloc(active_size * active_size, sizeof(Real));
+  G = (Real*) calloc(active_size * active_size, sizeof(Real));
   u = (Real*) calloc(D, sizeof(Real));
   a = (Real*) calloc(K, sizeof(Real));
   tmp = (Real*) calloc((K>D?K:D), sizeof(Real));
@@ -38,6 +39,10 @@ void Lars::set_y(const Real *y_in) {
 
   active_itr = 0;
   memset(active, -1, K * sizeof(int));
+  memset(w, 0, active_size * sizeof(Real));
+  memset(u, 0, D * sizeof(Real));
+  memset(a, 0, K * sizeof(Real));
+  memset(L, 0, active_size * active_size * sizeof(Real));
 
   timer.start(INIT_CORRELATION);
   for (int i = 0; i < K; i++) {
