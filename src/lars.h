@@ -30,6 +30,7 @@ struct Lars {
   Real *u; // unit direction of each iteration
   Real *a; // store Xt * u
   Real *L; // lower triangular matrix of the gram matrix of X_A (pxp)
+  Real *G; // lower triangular matrix of the gram matrix of X_A (pxp)
 
   Real lambda, lambda_new, lambda_old;
 
