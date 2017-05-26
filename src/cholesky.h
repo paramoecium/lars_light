@@ -47,7 +47,7 @@ in the active set(including itself)
 Compute ((X'X)^-1)w by solving (X'X)w = (LL')w = w
 */
 
-inline void update_cholesky_n_solve(Real *L, Real *w, const int n, const int N,
+inline Real update_cholesky_n_solve(Real *L, Real *w, const Real *v, const int n, const int N,
                   const Real *Xt, const int cur, const Idx *beta, const int D) {
   __m256d sum_v1, sum_v2, sum_v3, sum_v4, sum_v5, sum_v6, sum_v7, sum_v8;
   __m256d tmp0, tmp1, tmp2, tmp3; //for macros
@@ -62,6 +62,7 @@ inline void update_cholesky_n_solve(Real *L, Real *w, const int n, const int N,
       for (int k = 0; k < D; k++) {
         L(n, i) += Xt[cur * D + k] * Xt[beta[i].id * D + k];
       }
+      w[i] = v[i];
     }
     /* compute mvms (BxB)(Bx1), avx and unroll4 */
     for (b_k = 0; b_k + B <= b_i; b_k += B) {
@@ -172,7 +173,7 @@ inline void update_cholesky_n_solve(Real *L, Real *w, const int n, const int N,
       sum_s2 += L(i, k) * w[k];
     }
     L(n, i) = (L(n, i) - sum_s1) / L(i, i);
-    w[i] = (w[i] - sum_s2) / L(i, i);
+    w[i] = (v[i] - sum_s2) / L(i, i);
   }
 
   /* compute the lower right entry of L and solve the last element of (L^-1)w */
@@ -223,14 +224,18 @@ inline void update_cholesky_n_solve(Real *L, Real *w, const int n, const int N,
   }
 
   L(n, n) = sqrt(fmax(L(n, n) - sum_s1, EPSILON));
-  w[n] = (w[n] - sum_s2) / L(n, n);
+  w[n] = (v[n] - sum_s2) / L(n, n);
 
+  Real AA = 0.0;
   /* solve ((L')^-1)w with Gaussian elimination */
   for (i = n; i>= 0; i--) {
     w[i] /= L(i, i);
     for (k = 0; k < i; k++) {
       w[k] -= L(i, k) * w[i];
     }
+    AA += w[i] * v[i];
   }
+  AA = 1.0 / sqrt(AA);
+  return AA;
 }
 #endif

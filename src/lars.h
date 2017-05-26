@@ -24,6 +24,7 @@ struct Lars {
 
   int *active; // active[i] = position beta of active param or -1
   Real *c; //
+  Real *sgn;
   Real *w; // sign c[active_set]
   Real *u; // unit direction of each iteration
   Real *a; // store Xt * u
