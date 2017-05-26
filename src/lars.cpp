@@ -99,6 +99,7 @@ bool Lars::iterate() {
     for (int j = 0; j < D; j++) {
       L[active_itr * active_size + i] += Xt[cur * D + j] * Xt[beta_id[i] * D + j];
     }
+		G[active_itr * active_size + i] = L[active_itr * active_size + i];
   }
   timer.end(UPDATE_GRAM_MATRIX);
 
@@ -134,23 +135,50 @@ bool Lars::iterate() {
   memset(a, 0, K*sizeof(Real));
   memset(u, 0, D*sizeof(Real));
   // u = X_a * w
-  timer.start(GET_U);// Fuse GET_W
-  for (int i = 0; i <= active_itr; ++i) {
+	timer.start(GET_U);
+	memset(tmp, 0, (1+active_itr)*sizeof(Real));
+	for (int i = 0; i <= active_itr; i++) {
 		w[i] *= AA;
-    for (int j = 0; j < D; j++) {
-      u[j] += w[i] * Xt[beta_id[i] * D + j];
-    }
-  }
-  timer.end(GET_U);
+		for (int j = 0; j < i; j++) {
+			tmp[j] += G[i * active_size + j] * w[i];
+			tmp[i] += G[i * active_size + j] * w[j];
+		}
+		tmp[i] += G[i * active_size + i] * w[i];
+	} 
 
-  // a = X' * u
-  timer.start(GET_A);
-  for (int i = 0; i < K; i++) {
-    for (int j = 0; j < D; j++) {
-      a[i] += Xt[i * D + j] * u[j];
-    }
-  }
-  timer.end(GET_A);
+	for (int i = 0; i <= active_itr; ++i) {
+		for (int j = 0; j < D; j++) {
+			u[j] += w[i] * Xt[beta_id[i] * D + j];
+		}
+	}
+	
+	for (int i = 0; i < K; i++) {
+		if (active[i] >= 0) a[i] = tmp[active[i]];
+		else {
+			for (int j = 0; j < D; j++) {
+				a[i] += Xt[i * D + j] * u[j];
+			}
+		}
+	}
+
+	timer.end(GET_U);
+//  timer.start(GET_U);// Fuse GET_W
+//  for (int i = 0; i <= active_itr; ++i) {
+//		w[i] *= AA;
+//    for (int j = 0; j < D; j++) {
+//      u[j] += w[i] * Xt[beta_id[i] * D + j];
+//    }
+//  }
+//  timer.end(GET_U);
+//
+//  // a = X' * u
+//  timer.start(GET_A);
+//  for (int i = 0; i < K; i++) {
+//    for (int j = 0; j < D; j++) {
+//      a[i] += Xt[i * D + j] * u[j];
+//    }
+//  }
+//  timer.end(GET_A);
 
   timer.start(GET_GAMMA);
   gamma = C / AA;
