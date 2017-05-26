@@ -85,7 +85,7 @@ bool Lars::iterate() {
   // AA is is used to finalize w[]
   // AA = 1 / sqrt(sum of all entries in the inverse of G_A);
   print("AA: %.3f\n", AA);
-  for (int i = 0; i <= n; ++i) {
+  for (int i = 0; i <= active_itr; ++i) {
     w[i] *= AA;
   }
   print("w solved :");

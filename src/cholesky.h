@@ -12,6 +12,7 @@
 //#define L(i, j) L[i * N + j]
 #define L(i, j) L[((i * (i + 1))>>1) - 1 + j]
 #define _mm256_load_pd _mm256_loadu_pd
+//#define _mm256_store_pd _mm256_storeu_pd //TODO check memory alignment
 
 /*
 // for float
@@ -55,9 +56,10 @@ inline Real update_cholesky_n_solve(Real *L, Real *w, const Real *v, const int n
   Real sum_s1, sum_s2, sum_s3, sum_s4;
 
   int i, k, b_i, b_k;
+  const Real *Xt_cur = Xt + cur * D;
   for (b_i = 0; b_i + B <= n; b_i += B) {
-    /* initialize L(n, i) */
-    for (i = b_i; i < b_i + B; i++) {
+    /* initialize L(n, i) and w[i] */
+    for (i = b_i; i < b_i + B; i++) { // TODO Lily
       L(n, i) = 0.0;
       for (int k = 0; k < D; k++) {
         L(n, i) += Xt[cur * D + k] * Xt[beta[i].id * D + k];
@@ -75,7 +77,7 @@ inline Real update_cholesky_n_solve(Real *L, Real *w, const Real *v, const int n
         sum_v6 = _mm256_setzero_pd();
         sum_v7 = _mm256_setzero_pd();
         sum_v8 = _mm256_setzero_pd();
-        for (k = b_k; k <= b_k + B - 16; k += 16) {
+        for (k = b_k; k <= b_k + B - 4 * VEC_SIZE; k += 4 * VEC_SIZE) {
           Real *L_i_k = &L(i, k);
           Real *L_n_k = &L(n, k);
           Real *w_k = w + k;
@@ -125,7 +127,7 @@ inline Real update_cholesky_n_solve(Real *L, Real *w, const Real *v, const int n
 
     }
   }
-  /* finish the remaining triangle */
+  /* finish the remaining trapezoid */
   /* solve (L^-1)X'v and (L^-1)w with Gaussian elimination */
   for (i = b_i; i < n; i++) {
     sum_v1 = _mm256_setzero_pd();
@@ -140,7 +142,7 @@ inline Real update_cholesky_n_solve(Real *L, Real *w, const Real *v, const int n
     for (int k = 0; k < D; k++) {
       L(n, i) += Xt[cur * D + k] * Xt[beta[i].id * D + k];
     }
-    for (k = 0; k <= i - 16; k += 16) {
+    for (k = 0; k <= i - 4 * VEC_SIZE; k += 4 * VEC_SIZE) {
       Real *L_i_k = &L(i, k);
       Real *L_n_k = &L(n, k);
       Real *w_k = w + k;
@@ -185,7 +187,7 @@ inline Real update_cholesky_n_solve(Real *L, Real *w, const Real *v, const int n
   sum_v6 = _mm256_setzero_pd();
   sum_v7 = _mm256_setzero_pd();
   sum_v8 = _mm256_setzero_pd();
-  for (k = 0; k <= n - 16; k += 16) {
+  for (k = 0; k <= n - 4 * VEC_SIZE; k += 4 * VEC_SIZE) {
     Real *L_n_k = &L(n, k);
     Real *w_k = w + k;
 
@@ -218,22 +220,47 @@ inline Real update_cholesky_n_solve(Real *L, Real *w, const Real *v, const int n
   }
 
 
-  L(n, n) = 0.0;
+  Real L_n_n = 0.0;
   for (k = 0; k < D; k++) {
-    L(n, n) += Xt[cur * D + k] * Xt[beta[n].id * D + k];
+    L_n_n += Xt[cur * D + k] * Xt[beta[n].id * D + k];
   }
-
-  L(n, n) = sqrt(fmax(L(n, n) - sum_s1, EPSILON));
-  w[n] = (v[n] - sum_s2) / L(n, n);
+  L_n_n = sqrt(fmax(L_n_n - sum_s1, EPSILON));
+  w[n] = (v[n] - sum_s2) / L_n_n;
+  L(n, n) = L_n_n;
 
   Real AA = 0.0;
   /* solve ((L')^-1)w with Gaussian elimination */
-  for (i = n; i>= 0; i--) {
+  for (b_i = n; b_i - B >= -1; b_i -= B) {
+    /* pivot the triangle */
+    for (i = b_i; i > b_i - B; i--) {
+      w[i] /= L(i, i);
+      AA += w[i] * v[i];
+      for (k = i - 1; k > b_i - B; k--) {
+        w[k] -= L(i, k) * w[i];
+      }
+    }
+    /* compute mvms (BxB)(Bx1) */
+    for (b_k = b_i - B; b_k >= -1; b_k -= B) {
+      for (i = b_i; i > b_i - B; i--) {
+        for (k = b_k; k > b_k - B; k--) {
+          w[k] -= L(i, k) * w[i];
+        }
+      }
+    }
+    /* finish the remaining rectangle */
+    for (i = b_i; i > b_i - B; i--) {
+      for (; k >= 0; k--) {
+        w[k] -= L(i, k) * w[i];
+      }
+    }
+  }
+  /* finish the remaining triangle */
+  for (; i>= 0; i--) {
     w[i] /= L(i, i);
-    for (k = 0; k < i; k++) {
+    AA += w[i] * v[i];
+    for (k = i - 1; k >= 0; k--) {
       w[k] -= L(i, k) * w[i];
     }
-    AA += w[i] * v[i];
   }
   AA = 1.0 / sqrt(AA);
   return AA;
