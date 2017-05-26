@@ -1,5 +1,6 @@
 #include "lars.h"
 #include "timer_id.h"
+#include <algorithm>
 
 #ifndef LARS_CPP
 #define LARS_CPP
@@ -37,10 +38,6 @@ void Lars::set_y(const Real *y_in) {
 
   active_itr = 0;
   memset(active, -1, K * sizeof(int));
-  memset(w, 0, active_size * sizeof(Real));
-  memset(u, 0, D * sizeof(Real));
-  memset(a, 0, K * sizeof(Real));
-  memset(L, 0, active_size * active_size * sizeof(Real));
 
   timer.start(INIT_CORRELATION);
   for (int i = 0; i < K; i++) {
@@ -96,7 +93,6 @@ bool Lars::iterate() {
   Real AA = update_cholesky_n_solve(L, w, sgn, active_itr, active_size, Xt, cur, beta, D);
   timer.end(FUSED_CHOLESKY);
 
-
   // get the actual w[]
   // get a = X' X_a w
   // Now do X' (X_a w)
@@ -122,16 +118,6 @@ bool Lars::iterate() {
   }
   timer.end(GET_A);
 
-
-  print("u : ");
-  for (int i = 0; i < D; i++) print("%.3f ", u[i]);
-  print("\n");
-
-  print("a : ");
-  for (int i = 0; i < K; i++) print("%.3f ", a[i]);
-  print("\n");
-
-
   timer.start(GET_GAMMA);
   gamma = C / AA;
   int gamma_id = cur;
@@ -153,11 +139,9 @@ bool Lars::iterate() {
   for (int i = 0; i <= active_itr; ++i)
     beta_v[i] += gamma * w[i];
 
-  print("beta: ");
-  for (int i = 0; i <= active_itr; ++i) print("%d %.3f ", beta_id[i], beta_v[i]);
-  print("\n");
 
   active_itr++;
+
   return true;
 }
 
@@ -185,7 +169,9 @@ void Lars::solve() {
       }
       break;
     }
+
     itr++;
+
   }
   print("LARS DONE\n");
 }
@@ -220,5 +206,6 @@ inline Real Lars::compute_lambda() {
   }
   return max_lambda;
 }
+
 
 #endif
