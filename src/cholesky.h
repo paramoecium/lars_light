@@ -35,7 +35,7 @@ target = _mm256_add_pd(tmp1, tmp2);\
 
 const Real EPSILON = 1e-9;
 const int VEC_SIZE = 4;
-const int B = 36; //block size;
+const int B = 32; //block size, multiple of 16;
 /*
 1.
 X'X = LL', L is a n x n matrix in N x N memory
@@ -52,7 +52,7 @@ inline void update_cholesky_n_solve(Real *L, Real *w, const int n, const int N,
   __m256d sum_v1, sum_v2, sum_v3, sum_v4, sum_v5, sum_v6, sum_v7, sum_v8;
   __m256d tmp0, tmp1, tmp2, tmp3; //for macros
   Real tmp_arr[2 * VEC_SIZE];
-  Real sum_s1, sum_s2;
+  Real sum_s1, sum_s2, sum_s3, sum_s4;
 
   int i, k, b_i, b_k;
   for (b_i = 0; b_i + B <= n; b_i += B) {
@@ -63,27 +63,64 @@ inline void update_cholesky_n_solve(Real *L, Real *w, const int n, const int N,
         L(n, i) += Xt[cur * D + k] * Xt[beta[i].id * D + k];
       }
     }
-    /* compute mvms (BxB)(Bx1) */
+    /* compute mvms (BxB)(Bx1), avx and unroll4 */
     for (b_k = 0; b_k + B <= b_i; b_k += B) {
       for (i = b_i; i < b_i + B; i++) {
-        sum_s1 = 0.0, sum_s2 = 0.0;
-        for (k = b_k; k < b_k + B; k++) {
-          sum_s1 += L(i, k) * L(n, k);
-          sum_s2 += L(i, k) * w[k];
+        sum_v1 = _mm256_setzero_pd();
+        sum_v2 = _mm256_setzero_pd();
+        sum_v3 = _mm256_setzero_pd();
+        sum_v4 = _mm256_setzero_pd();
+        sum_v5 = _mm256_setzero_pd();
+        sum_v6 = _mm256_setzero_pd();
+        sum_v7 = _mm256_setzero_pd();
+        sum_v8 = _mm256_setzero_pd();
+        for (k = b_k; k <= b_k + B - 16; k += 16) {
+          Real *L_i_k = &L(i, k);
+          Real *L_n_k = &L(n, k);
+          Real *w_k = w + k;
+
+          __m256d vec_L_i_k = _mm256_load_pd(L_i_k);
+          __m256d vec_L_i_k_4 = _mm256_load_pd(L_i_k + 4);
+          __m256d vec_L_i_k_8 = _mm256_load_pd(L_i_k + 8);
+          __m256d vec_L_i_k_12 = _mm256_load_pd(L_i_k + 12);
+
+          sum_v1 = _mm256_fmadd_pd(vec_L_i_k, _mm256_load_pd(L_n_k), sum_v1);
+          sum_v2 = _mm256_fmadd_pd(vec_L_i_k_4, _mm256_load_pd(L_n_k + 4), sum_v2);
+          sum_v3 = _mm256_fmadd_pd(vec_L_i_k_8, _mm256_load_pd(L_n_k + 8), sum_v3);
+          sum_v4 = _mm256_fmadd_pd(vec_L_i_k_12, _mm256_load_pd(L_n_k + 12), sum_v4);
+
+          sum_v5 = _mm256_fmadd_pd(vec_L_i_k, _mm256_load_pd(w_k), sum_v5);
+          sum_v6 = _mm256_fmadd_pd(vec_L_i_k_4, _mm256_load_pd(w_k + 4), sum_v6);
+          sum_v7 = _mm256_fmadd_pd(vec_L_i_k_8, _mm256_load_pd(w_k + 8), sum_v7);
+          sum_v8 = _mm256_fmadd_pd(vec_L_i_k_12, _mm256_load_pd(w_k + 12), sum_v8);
         }
+        sum_v1 = _mm256_add_pd(_mm256_add_pd(sum_v1, sum_v3), _mm256_add_pd(sum_v2, sum_v4));
+        sum_v5 = _mm256_add_pd(_mm256_add_pd(sum_v5, sum_v7), _mm256_add_pd(sum_v6, sum_v8));
+        REDUCE_ADD(sum_v1)
+        REDUCE_ADD(sum_v5)
+        _mm256_store_pd(tmp_arr, sum_v1);
+        _mm256_store_pd(tmp_arr + VEC_SIZE, sum_v5);
+        sum_s1 = tmp_arr[0];
+        sum_s2 = tmp_arr[VEC_SIZE];
         L(n, i) -= sum_s1;
         w[i] -= sum_s2;
       }
     }
-    /* pivot the triangle */
+    /* pivot the triangle, unroll2 */
     for (i = b_i; i < b_i + B; i++) {
-      sum_s1 = 0.0, sum_s2 = 0.0;
-      for (k = b_k; k < i; ++k) {
+      sum_s1 = 0.0, sum_s2 = 0.0, sum_s3 = 0.0, sum_s4 = 0.0;
+      for (k = b_k; k <= i - 2; k += 2) {
+        sum_s1 += L(i, k) * L(n, k);
+        sum_s3 += L(i, k + 1) * L(n, k + 1);
+        sum_s2 += L(i, k) * w[k];
+        sum_s4 += L(i, k + 1) * w[k + 1];
+      }
+      for (; k < i; ++k) {
         sum_s1 += L(i, k) * L(n, k);
         sum_s2 += L(i, k) * w[k];
       }
-      L(n, i) = (L(n, i) - sum_s1) / L(i, i);
-      w[i] = (w[i] - sum_s2) / L(i, i);
+      L(n, i) = (L(n, i) - sum_s1 - sum_s3) / L(i, i);
+      w[i] = (w[i] - sum_s2 - sum_s4) / L(i, i);
 
     }
   }
@@ -130,7 +167,7 @@ inline void update_cholesky_n_solve(Real *L, Real *w, const int n, const int N,
     _mm256_store_pd(tmp_arr + VEC_SIZE, sum_v5);
     sum_s1 = tmp_arr[0];
     sum_s2 = tmp_arr[VEC_SIZE];
-    for (; k < i; ++k) {
+    for (; k < i; ++k) { // less than 16 times, unroll?
       sum_s1 += L(i, k) * L(n, k);
       sum_s2 += L(i, k) * w[k];
     }
@@ -147,7 +184,7 @@ inline void update_cholesky_n_solve(Real *L, Real *w, const int n, const int N,
   sum_v6 = _mm256_setzero_pd();
   sum_v7 = _mm256_setzero_pd();
   sum_v8 = _mm256_setzero_pd();
-  for (k = 0; k <= i - 16; k += 16) {
+  for (k = 0; k <= n - 16; k += 16) {
     Real *L_n_k = &L(n, k);
     Real *w_k = w + k;
 
@@ -174,7 +211,7 @@ inline void update_cholesky_n_solve(Real *L, Real *w, const int n, const int N,
   _mm256_store_pd(tmp_arr + VEC_SIZE, sum_v5);
   sum_s1 = tmp_arr[0];
   sum_s2 = tmp_arr[VEC_SIZE];
-  for (; k < n; k++) {
+  for (; k < n; k++) { // less than 16 times, unroll?
     sum_s1 += L(n, k) * L(n, k);
     sum_s2 += L(n, k) * w[k];
   }
