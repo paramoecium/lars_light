@@ -37,6 +37,7 @@ struct Lars {
   Real gamma;
 
   Real *tmp; // temporary storage for active correlations
+  int  *tmp_int;
 
   Timer timer;
 

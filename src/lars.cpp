@@ -24,6 +24,7 @@ Lars::Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in, Timer &timer_i
   G = (Real*) calloc(active_size * active_size, sizeof(Real));
   u = (Real*) calloc(D, sizeof(Real));
   a = (Real*) calloc(K, sizeof(Real));
+	tmp_int = (int *) calloc(active_size, sizeof(int));
   tmp = (Real*) calloc((K>D?K:D), sizeof(Real));
 
 	gamma = 0.0;
@@ -43,6 +44,8 @@ void Lars::set_y(const Real *y_in) {
   memset(u, 0, D * sizeof(Real));
   memset(a, 0, K * sizeof(Real));
   memset(L, 0, active_size * active_size * sizeof(Real));
+
+	for (int i = 0; i < active_size; i++) tmp_int[i] = i;
 
   timer.start(INIT_CORRELATION);
   for (int i = 0; i < K; i++) {
@@ -104,12 +107,13 @@ bool Lars::iterate() {
 
   memset(a, 0, K*sizeof(Real));
   memset(u, 0, D*sizeof(Real));
+	std::sort(tmp_int, tmp_int + (active_itr + 1), [this](int i, int j) {return beta_id[i]<beta_id[j];});
   // u = X_a * w
   timer.start(GET_U);// Fuse GET_W
   for (int i = 0; i <= active_itr; ++i) {
-		w[i] *= AA;
+		w[tmp_int[i]] *= AA;
     for (int j = 0; j < D; j++) {
-      u[j] += w[i] * Xt[beta_id[i] * D + j];
+      u[j] += w[tmp_int[i]] * Xt[beta_id[tmp_int[i]] * D + j];
     }
   }
   timer.end(GET_U);
