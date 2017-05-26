@@ -1,5 +1,6 @@
 #include "lars.h"
 #include "timer_id.h"
+#include <algorithm>
 
 #ifndef LARS_CPP
 #define LARS_CPP
@@ -37,10 +38,6 @@ void Lars::set_y(const Real *y_in) {
 
   active_itr = 0;
   memset(active, -1, K * sizeof(int));
-  memset(w, 0, active_size * sizeof(Real));
-  memset(u, 0, D * sizeof(Real));
-  memset(a, 0, K * sizeof(Real));
-  memset(L, 0, active_size * active_size * sizeof(Real));
 
   timer.start(INIT_CORRELATION);
   for (int i = 0; i < K; i++) {
@@ -118,7 +115,7 @@ bool Lars::iterate() {
   timer.start(GET_AA);
   Real AA = 0.0;
   for (int i = 0; i <= active_itr; ++i) {
-    AA += w[i] * sign(c[beta_id[i]]);
+    AA += w[i] * sgn[i];
   }
   AA = 1.0 / sqrt(AA);
   print("AA: %.3f\n", AA);
@@ -150,16 +147,6 @@ bool Lars::iterate() {
   }
   timer.end(GET_A);
 
-
-  print("u : ");
-  for (int i = 0; i < D; i++) print("%.3f ", u[i]);
-  print("\n");
-
-  print("a : ");
-  for (int i = 0; i < K; i++) print("%.3f ", a[i]);
-  print("\n");
-
-
   timer.start(GET_GAMMA);
   gamma = C / AA;
   int gamma_id = cur;
@@ -184,11 +171,9 @@ bool Lars::iterate() {
     beta_v[i] += gamma * w[i];
   timer.end(UPDATE_BETA);
 
-  print("beta: ");
-  for (int i = 0; i <= active_itr; ++i) print("%d %.3f ", beta_id[i], beta_v[i]);
-  print("\n");
 
   active_itr++;
+
   return true;
 }
 
@@ -220,7 +205,9 @@ void Lars::solve() {
       timer.end(INTERPOLATE_BETA);
       break;
     }
+
     itr++;
+
   }
   print("LARS DONE\n");
 }
@@ -255,5 +242,6 @@ inline Real Lars::compute_lambda() {
   }
   return max_lambda;
 }
+
 
 #endif

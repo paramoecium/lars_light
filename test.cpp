@@ -9,17 +9,9 @@ int main() {
   // Initailize data
   int D, K;
   Real *Xt;
-<<<<<<< HEAD
   Real *y, *y_2;
-=======
-  Real *y;
-<<<<<<< HEAD
->>>>>>> break Idx structure into two arrays
-  Idx *beta;
-=======
   int *beta_id;
   Real *beta_v;
->>>>>>> 3ff04f6... break Idx structure into two arrays
   Real lambda = 0.0;
   Timer timer(END_ITR);
 
