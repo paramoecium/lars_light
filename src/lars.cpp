@@ -47,12 +47,39 @@ void Lars::set_y(const Real *y_in) {
 
 	for (int i = 0; i < active_size; i++) tmp_int[i] = i;
 
-  for (int i = 0; i < K; i++) {
-    active[i] = -1;
-    for (int j = 0; j < D; j++) {
-      c[i] += Xt[i * D + j] * y[j];
+  tiemr.start(INIT_CORRELATION);
+  for (int i = 0; i < K; i += 4) {
+    active[i+0] = -1;
+    active[i+1] = -1;
+    active[i+2] = -1;
+    active[i+3] = -1;
+    __m256d cc0 = _mm256_setzero_pd();
+    __m256d cc1 = _mm256_setzero_pd();
+    __m256d cc2 = _mm256_setzero_pd();
+    __m256d cc3 = _mm256_setzero_pd();
+
+    for (int x = 0; x < D; x += 4) {
+      __m256d yy = _mm256_load_pd(&y[x]);
+      __m256d xt0 = _mm256_load_pd(&Xt[(i+0) * D + x]);
+      __m256d xt1 = _mm256_load_pd(&Xt[(i+1) * D + x]);
+      __m256d xt2 = _mm256_load_pd(&Xt[(i+2) * D + x]);
+      __m256d xt3 = _mm256_load_pd(&Xt[(i+3) * D + x]);
+      cc0 = _mm256_add_pd(cc0, _mm256_mul_pd(xt0, yy));
+      cc1 = _mm256_add_pd(cc1, _mm256_mul_pd(xt1, yy));
+      cc2 = _mm256_add_pd(cc2, _mm256_mul_pd(xt2, yy));
+      cc3 = _mm256_add_pd(cc3, _mm256_mul_pd(xt3, yy));
     }
+    __m256d cc01 = _mm256_hadd_pd(cc0, cc1);
+    __m256d cc23 = _mm256_hadd_pd(cc2, cc3);
+    _mm256_store_pd(tmp, cc01);
+    _mm256_store_pd(tmp+4, cc23);
+    c[i] = tmp[0] + tmp[2];
+    c[i+1] = tmp[1] + tmp[3];
+    c[i+2] = tmp[4] + tmp[6];
+    c[i+3] = tmp[5] + tmp[7];
   }
+  // mvm(Xt, false, y, c, K, D);
+  timer.end(INIT_CORRELATION);
 }
 
 Lars::~Lars() {

@@ -2,12 +2,14 @@
 #define TIMER_ID_H
 
 enum TIMER_ID{
+  INIT_CORRELATION,
   GET_ACTIVE_IDX,
   FUSED_CHOLESKY,
   END_ITR
 };
 
 static const char *TIMER_ID_STR[] = {
+  "INIT_CORRELATION",
   "GET_ACTIVE_IDX",
   "FUSED_CHOLESKY",
 
