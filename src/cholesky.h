@@ -11,7 +11,7 @@
 
 //#define L(i, j) L[i * N + j]
 #define L(i, j) L[((i * (i + 1))>>1) - 1 + j]
-#define _mm256_load_pd _mm256_loadu_pd
+//#define _mm256_load_pd _mm256_loadu_pd
 //#define _mm256_store_pd _mm256_storeu_pd //TODO check memory alignment
 
 /*
