@@ -29,9 +29,9 @@ inline void update_cholesky(Real* L, int j, const int N) {
     }
     L[j * N + i] = sum / L[i * N + i];
   }
-  sum = L[j * N + i];
-  for (k = 0; k < i; k++) {
-    sum -= L[i * N + k] * L[j * N + k];
+  sum = L[j * N + j];
+  for (k = 0; k < j; k++) {
+    sum -= L[j * N + k] * L[j * N + k];
   }
   if (sum <= 0.0) sum = eps_small;
   L[j * N + j] = sqrt(sum);
