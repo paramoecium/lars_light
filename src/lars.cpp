@@ -1,6 +1,7 @@
 #include "lars.h"
 #include "timer_id.h"
 #include <algorithm>
+#include <immintrin.h>
 
 #ifndef LARS_CPP
 #define LARS_CPP
@@ -15,7 +16,7 @@ Lars::Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in, Timer &timer_i
 
   // Initializing
   active_size = fmin(K, D);
-  active = (int*) malloc(K * sizeof(int));
+  active = (Real*) malloc(K * sizeof(Real));
 
   c = (Real*) calloc(K, sizeof(Real));
 	sgn = (Real*) calloc(active_size, sizeof(Real));
@@ -39,7 +40,6 @@ void Lars::set_y(const Real *y_in) {
   memset(beta_old_v, 0, K*sizeof(Real));
 
   active_itr = 0;
-  memset(active, -1, K * sizeof(int));
   memset(w, 0, active_size * sizeof(Real));
   memset(u, 0, D * sizeof(Real));
   memset(a, 0, K * sizeof(Real));
@@ -48,6 +48,7 @@ void Lars::set_y(const Real *y_in) {
 	for (int i = 0; i < active_size; i++) tmp_int[i] = i;
 
   for (int i = 0; i < K; i++) {
+    active[i] = -1;
     for (int j = 0; j < D; j++) {
       c[i] += Xt[i * D + j] * y[j];
     }
@@ -61,23 +62,115 @@ Lars::~Lars() {
 bool Lars::iterate() {
   if (active_itr >= active_size) return false;
 
-	Real C = 0.0;
-	int cur = -1;
-	for (int i = 0; i < K; ++i) {
-		c[i] -= gamma * a[i];
+  Real C = 0.0;
+  int cur = -1;
+  const __m256d zero = _mm256_setzero_pd();
+  const __m256d mone = _mm256_set1_pd(-1);
+  const __m256d pone = _mm256_set1_pd(1);
 
-		if (active[i] < 0 and fabs(c[i]) > C) {
-			cur = i;
-			C = fabs(c[i]);
-		} else if (active[i] >= 0) {
-			sgn[active[i]] = sign(c[i]);
-		}
-	}
+  timer.start(GET_ACTIVE_IDX);
+  __m256d maxv = _mm256_setzero_pd();
+  __m256d curv = _mm256_set1_pd(-1);
+  __m256d posv = _mm256_set_pd(-1.0, -2.0, -3.0, -4.0);
+  __m256d gamma_v = _mm256_set1_pd(-gamma);
+  for (int i = 0; i < K; i+=4) {
+    __m256d active_v = _mm256_load_pd(&active[i]);
+    __m256d cc = _mm256_load_pd(&c[i]);
+    __m256d a_v = _mm256_load_pd(&a[i]);
+    cc = _mm256_fmadd_pd(gamma_v, a_v, cc);
+    _mm256_store_pd(&c[i], cc);
+    if (active[i+0]>=0) sgn[(int)active[i+0]] = sign(c[i+0]);
+    if (active[i+1]>=0) sgn[(int)active[i+1]] = sign(c[i+1]);
+    if (active[i+2]>=0) sgn[(int)active[i+2]] = sign(c[i+2]);
+    if (active[i+3]>=0) sgn[(int)active[i+3]] = sign(c[i+3]);
+//    c_v = _mm256_fmadd_pd(gamma_v, a_v, c_v);
+
+    active_v = _mm256_cmp_pd(active_v, zero, _CMP_LT_OS);
+    __m256d neg_cc = _mm256_cmp_pd(cc, zero, _CMP_LT_OS);
+    __m256d active_cc = _mm256_and_pd(cc, active_v);
+    __m256d ccx2 = _mm256_mul_pd(active_cc, _mm256_set1_pd(-2.0));
+    neg_cc = _mm256_and_pd(ccx2, neg_cc);
+    __m256d fabs_cc = _mm256_add_pd(active_cc, neg_cc);
+    //_mm256_store_pd(tmp, fabs_cc);
+
+    __m256d change = _mm256_cmp_pd(maxv, fabs_cc, _CMP_LT_OS);
+    maxv = _mm256_max_pd(maxv, fabs_cc);
+    posv = _mm256_add_pd(posv, _mm256_set1_pd(4.0));
+    curv = _mm256_blendv_pd(curv, posv, change);
+
+  }
+  _mm256_store_pd(tmp, maxv);
+  _mm256_store_pd(tmp + 4, curv);
+  for (int i = 0; i < 4; i++) {
+    if (tmp[i] > C) {cur = (int)tmp[i+4]; C = tmp[i];} 
+  }
+
+
+//  timer.start(GET_ACTIVE_IDX);
+//	Real C = 0.0;
+//	int cur = -1;
+//  __m256d gamma_v = _mm256_set1_pd(-gamma);
+//  __m256d max_c = _mm256_setzero_pd();
+//  __m256d cur_v = _mm256_set1_pd(-1.0);
+//  __m256d pos_v = _mm256_set_pd(3.0, 2.0, 1.0, 0.0);
+//  __m256d four = _mm256_set1_pd(4.0);
+//	for (int i = 0; i < K; i+=4) {
+//    __m256d a_v = _mm256_load_pd(&a[i]);
+//    __m256d c_v = _mm256_load_pd(&c[i]);
+//    __m256d active_v = _mm256_load_pd(&active[i]);
+//
+//    c_v = _mm256_fmadd_pd(gamma_v, a_v, c_v);
+//
+//    __m256d not_active = _mm256_cmp_pd(active_v, zero, _CMP_LT_OS);
+//    _mm256_store_pd(tmp, not_active);
+//    __m256d neg_sgn_c = _mm256_cmp_pd(c_v, zero, _CMP_LT_OS);
+//    __m256d pos_sgn_c = _mm256_cmp_pd(zero, c_v, _CMP_LT_OS);
+//
+//    __m256d pos_c = _mm256_and_pd(c_v, pos_sgn_c);
+//    __m256d abs_c = _mm256_fmsub_pd(_mm256_set1_pd(2.0), pos_c, c_v);
+//    __m256d use_c = _mm256_cmp_pd(max_c, abs_c, _CMP_LT_OS); // C < fabs(c[i])
+//    use_c = _mm256_and_pd(not_active, use_c); // active[i] < 0 and fabs(c[i]) > C
+//    __m256d sgn_c = _mm256_add_pd(_mm256_and_pd(mone, neg_sgn_c),
+//                                  _mm256_and_pd(pone, pos_sgn_c));
+//
+//    cur_v = _mm256_blendv_pd(cur_v, pos_v, use_c);
+//    max_c = _mm256_blendv_pd(max_c, abs_c, use_c);
+//
+//    pos_v = _mm256_add_pd(four, pos_v);
+//
+//    _mm256_store_pd(tmp, sgn_c);
+//    _mm256_store_pd(&c[i], c_v);
+//
+//    if(active[i+0] >= 0) sgn[(int)active[i+0]] = tmp[0];
+//    if(active[i+1] >= 0) sgn[(int)active[i+1]] = tmp[1];
+//    if(active[i+2] >= 0) sgn[(int)active[i+2]] = tmp[2];
+//    if(active[i+3] >= 0) sgn[(int)active[i+3]] = tmp[3];
+//	}
+//  
+//  _mm256_store_pd(tmp, max_c);
+//  _mm256_store_pd(tmp+4, cur_v);
+
+//  for (int i = 0; i < 4; i++) {
+//    if (C < tmp[i]) cur = tmp[i+4], C = tmp[i];
+//  }
+
+
+//	for (int i = 0; i < K; ++i) {
+//		c[i] -= gamma * a[i];
+//
+//		if (active[i] < 0 and fabs(c[i]) > C) {
+//			cur = i;
+//			C = fabs(c[i]);
+//		} else if (active[i] >= 0) {
+//			sgn[(int)active[i]] = sign(c[i]);
+//		}
+//	}
+  timer.end(GET_ACTIVE_IDX);
 
   // All remainging C are 0
   if (cur == -1) return false;
 
-  assert(active[cur] == -1 and active_itr < D);
+  assert((int)active[cur] == -1 and active_itr < D);
 
   active[cur] = active_itr;
   beta_id[active_itr] = cur;
@@ -120,7 +213,7 @@ bool Lars::iterate() {
   if (active_itr < active_size) {
     print("C=%.3f AA=%.3f\n", C, AA);
     for (int i = 0; i < K; i++) {
-      if (active[i] >= 0) continue;
+      if ((int)active[i] >= 0) continue;
       Real t1 = (C - c[i]) / (AA - a[i]);
       Real t2 = (C + c[i]) / (AA + a[i]);
       print("%d : t1 = %.3f, t2 = %.3f\n", i, t1, t2);

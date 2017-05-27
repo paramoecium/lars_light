@@ -22,7 +22,7 @@ struct Lars {
   int *beta_id, *beta_old_id;
   Real *beta_v, *beta_old_v;
 
-  int *active; // active[i] = position beta of active param or -1
+  Real *active; // active[i] = position beta of active param or -1
   Real *c; //
   Real *sgn;
   Real *w; // sign c[active_set]
