@@ -328,22 +328,17 @@ inline Real Lars::compute_lambda() {
 //    max_lambda = fmax(max_lambda, fabs(lambda));
 //  }
 
-  Real max_lambda = Real(0.0);
+  Real max_lambda = 1e-5;
   for (int i = 0; i < active_itr; i++) {
     for (int j = 0; j < i; j++) {
       tmp[j] -= G(i, j) * beta_v[i];
+      if (i == active_itr - 1) max_lambda = fmax(max_lambda, tmp[j]);
       tmp[i] -= G(i, j) * beta_v[j];
     }
     tmp[i] -= G(i, i) * beta_v[i];
   }
+  max_lambda = fmax(max_lambda, tmp[active_itr-1]);
   
-  for (int i = 0; i < active_itr; i++) {
-    max_lambda = fmax(max_lambda, tmp[i]);
-    for (int j = 0; j < D; j++) {
-      u[j] -= Xt[beta_id[i] * D + j] * beta_v[i];
-    }
-  }
-  if (max_lambda < 1e-9) max_lambda = 0.0001;
 
 //  for (int i = 0; i < K; i++) {
 //    Real lambda = 0;
