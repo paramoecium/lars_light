@@ -214,9 +214,32 @@ bool Lars::iterate() {
   }
   timer.end(GET_GAMMA);
 
-  // add gamma * w to beta
-  for (int i = 0; i <= active_itr; ++i)
+
+  int V_size = (active_itr + 1) / 16, V_res = (active_itr+1)%16;
+  __m256d g_gw = _mm256_set1_pd(gamma);
+  for (int ii = 0; ii < V_size; ++ii) {
+    int i = ii * 16;
+    __m256d bv0 = _mm256_load_pd(&beta_v[i]);
+    __m256d ww0 = _mm256_load_pd(&w[i]);
+    __m256d bv1 = _mm256_load_pd(&beta_v[i+4]);
+    __m256d ww1 = _mm256_load_pd(&w[i+4]);
+    __m256d bv2 = _mm256_load_pd(&beta_v[i+8]);
+    __m256d ww2 = _mm256_load_pd(&w[i+8]);
+    __m256d bv3 = _mm256_load_pd(&beta_v[i+12]);
+    __m256d ww3 = _mm256_load_pd(&w[i+12]);
+    bv0 = _mm256_fmadd_pd(g_gw, ww0, bv0);
+    bv1 = _mm256_fmadd_pd(g_gw, ww1, bv1);
+    bv2 = _mm256_fmadd_pd(g_gw, ww2, bv2);
+    bv3 = _mm256_fmadd_pd(g_gw, ww3, bv3);
+    _mm256_store_pd(&beta_v[i], bv0);
+    _mm256_store_pd(&beta_v[i+4], bv1);
+    _mm256_store_pd(&beta_v[i+8], bv2);
+    _mm256_store_pd(&beta_v[i+12], bv3);
+  }
+  for (int ii = 0; ii < V_res; ++ii) {
+    int i = 16 * V_size + ii;
     beta_v[i] += gamma * w[i];
+  }
 
 
   active_itr++;
