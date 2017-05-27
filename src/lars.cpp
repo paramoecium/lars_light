@@ -62,97 +62,22 @@ Lars::~Lars() {
 
 bool Lars::iterate() {
   if (active_itr >= active_size) return false;
-	Real mask[2];
-	int maski[2];
-	mask[0] = 0x0000000000000000; mask[1] = 0xFFFFFFFFFFFFFFFF;
-	maski[0] = 0x00000000; maski[1] = 0xFFFFFFFF;
 
-	timer.start(GET_ACTIVE_IDX);
 	Real C = 0.0;
 	int cur = -1;
-	{
-		Real C_v[2] = {0.0};
-		int cur_v[2] = {-1};
-		for (int i = 0; i < K; i+=2) {
-			c[i+0] -= gamma * a[i+0];
-			c[i+1] -= gamma * a[i+1];
+	timer.start(GET_ACTIVE_IDX);
+	for (int i = 0; i < K; ++i) {
+		c[i] -= gamma * a[i];
 
-			bool active_v[2];
-			active_v[0] = active[i+0] >= 0;
-			active_v[1] = active[i+1] >= 0;
-
-			Real fabs_c[2], tmp_c[2][2];
-			int tmp_cur[2][2];
-			fabs_c[0] = fabs(c[i+0]);
-			fabs_c[1] = fabs(c[i+1]);
-			bool maxer[2];
-			maxer[0] = fabs_c[0] > C_v[0]; maxer[0] = maxer[0] and !active_v[0];
-			maxer[1] = fabs_c[1] > C_v[1]; maxer[1] = maxer[1] and !active_v[1];
-			C_v[0] = maxer[0]? fabs_c[0]: C_v[0];
-			C_v[1] = maxer[1]? fabs_c[1]: C_v[1];
-//			tmp_c[0][0] = mask[ maxer[0]] & fabs_c[0];
-//			tmp_c[0][1] = mask[!maxer[0]] & C_v[0];
-//			tmp_c[1][0] = mask[ maxer[1]] & fabs_c[1];
-//			tmp_c[1][1] = mask[!maxer[1]] & C_v[1];
-//			tmp_c[2][0] = mask[ maxer[2]] & fabs_c[2];
-//			tmp_c[2][1] = mask[!maxer[2]] & C_v[2];
-//			tmp_c[3][0] = mask[ maxer[3]] & fabs_c[3];
-//			tmp_c[3][1] = mask[!maxer[3]] & C_v[3];
-//			C_v[0] = tmp_c[0][0] | tmp_c[0][1];
-//			C_v[1] = tmp_c[1][0] | tmp_c[1][1];
-//			C_v[2] = tmp_c[2][0] | tmp_c[2][1];
-//			C_v[3] = tmp_c[3][0] | tmp_c[3][1];
-			
-			tmp_cur[0][0] = maski[ maxer[0]] & (i+0);
-			tmp_cur[0][1] = maski[!maxer[0]] & (cur_v[0]);
-			tmp_cur[1][0] = maski[ maxer[1]] & (i+1);
-			tmp_cur[1][1] = maski[!maxer[1]] & (cur_v[1]);
-			cur_v[0] = tmp_cur[0][0] | tmp_cur[0][1];
-			cur_v[1] = tmp_cur[1][0] | tmp_cur[1][1];
-
-//			sgn[active[i+0]] = sign(c[i+0]) & mask[active_v[i+0]];
-//			sgn[active[i+1]] = sign(c[i+1]) & mask[active_v[i+1]];
-//			sgn[active[i+2]] = sign(c[i+2]) & mask[active_v[i+2]];
-//			sgn[active[i+3]] = sign(c[i+3]) & mask[active_v[i+3]];
-			Real mask01[2];
-			mask[0] = 0, mask[1] = 1;
-//			if (active_v[0]) sgn[active[i+0]] = sign(c[i+0]);
-//			if (active_v[1]) sgn[active[i+1]] = sign(c[i+1]);
-//			if (active_v[2]) sgn[active[i+2]] = sign(c[i+2]);
-//			if (active_v[3]) sgn[active[i+3]] = sign(c[i+3]);
-			sgn[active[i+0]*active_v[0]] = sign(c[i+0]);
-			sgn[active[i+1]*active_v[1]] = sign(c[i+1]);
+		if (active[i] < 0 and fabs(c[i]) > C) {
+			cur = i;
+			C = fabs(c[i]);
+		} else if (active[i] >= 0) {
+			sgn[active[i]] = sign(c[i]);
 		}
-		sgn[0] = sign(c[beta_id[0]]);
-	
-		bool maxer;
-		int tmp_idx;
-		maxer = C_v[0] > C_v[1];
-		tmp_idx = (0 & maski[maxer]) | (1 & maski[!maxer]);
-		C = C_v[tmp_idx], cur = cur_v[tmp_idx];
 	}
 	timer.end(GET_ACTIVE_IDX);
-//  if (active_itr >= active_size) return false;
-//
-//	Real C = 0.0;
-//	int cur = -1;
-//	for (int i = 0; i < K; ++i) {
-//		timer.start(UPDATE_CORRELATION);
-//		c[i] -= gamma * a[i];
-//		timer.end(UPDATE_CORRELATION);
-//
-//		timer.start(GET_ACTIVE_IDX);
-//		if (active[i] < 0 and fabs(c[i]) > C) {
-//			cur = i;
-//			C = fabs(c[i]);
-//			timer.end(GET_ACTIVE_IDX);
-//		} else if (active[i] >= 0) {
-//			timer.start(INITIALIZE_W);
-//			sgn[active[i]] = sign(c[i]);
-//			timer.end(INITIALIZE_W);
-//		}
-//	}
-//
+
   // All remainging C are 0
   if (cur == -1) return false;
 
@@ -275,7 +200,7 @@ inline Real Lars::compute_lambda() {
   memcpy(tmp, y, D * sizeof(Real));
   for (int i = 0; i < active_itr; i++) {
     for (int j = 0; j < D; j++)
-      tmp[j] -= Xt[beta_id[i] * D + j] * beta_v[i];
+      tmp[j] -= Xt[beta_id[tmp_int[i]] * D + j] * beta_v[tmp_int[i]];
   }
   // compute X'*(y - X*beta)
   Real max_lambda = Real(0.0);
