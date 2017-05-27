@@ -11,7 +11,7 @@
 #include "rdtsc.h"
 #include "timer.h"
 
-#define RUNS 10
+#define RUNS 5
 #define CYCLES_REQUIRED 1e7
 #define VERIFY
 
@@ -27,21 +27,6 @@ int measure(const int D, const int K, Real *Xt, Real *y, Real *beta, Real *beta_
   // Warm-up phase: determine number of runs needed
   // to ignore the timing overhead
   Lars lars(Xt, D, K, lambda, timer);
-
-  while(1) {
-    CPUID(); RDTSC(start);
-    for (int i = 0; i < num_runs; ++i) {
-      lars.set_y(y);
-      lars.solve();
-    }
-    CPUID(); RDTSC(end);
-
-    cycles = (double) (COUNTER_DIFF(end, start));
-
-    if (cycles >= CYCLES_REQUIRED) break;
-
-    num_runs *= 2;
-  }
 
   timer.reset();
   CPUID(); RDTSC(start);
@@ -79,7 +64,7 @@ Real *beta) {
 }
 
 int main() {
-  const int Max_D = 1 << 11, Max_K = 2 * Max_D;
+  const int Max_D = 1 << 13, Max_K = 2 * Max_D;
   //const int Max_D = 600, Max_K = 600;
   Real lambda = 0.0;
   Timer timer(END_ITR);
@@ -89,10 +74,11 @@ int main() {
   Real *beta = (Real*) malloc(sizeof(Real) * Max_K);
   Real *beta_h = (Real*) malloc(sizeof(Real) * Max_K);
 
-  for (int i = 1 << 7; i <= Max_D; i += (1<<7)) {
+  for (int i = 1 << 9; i <= Max_D; i += (1<<9)) {
     printf("\nD = %d, K = %d\n", i , 2 * i);
     timer.reset();
     set_value(i, 2 * i, Xt, y, beta);
     int num_runs = measure(i, 2 * i, Xt, y, beta, beta_h, lambda, timer);
+
   }
 }
