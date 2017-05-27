@@ -5,7 +5,9 @@ enum TIMER_ID{
   INIT_CORRELATION,
   GET_ACTIVE_IDX,
   FUSED_CHOLESKY,
+  GET_A,
   GET_GAMMA,
+  COMPUTE_LAMBDA,
   END_ITR
 };
 
@@ -14,6 +16,8 @@ static const char *TIMER_ID_STR[] = {
   "GET_ACTIVE_IDX",
   "FUSED_CHOLESKY",
   "GET_GAMMA",
+  "GET_A",
+  "COMPUTE_LAMBDA",
   "END_ITR"
 };
 

@@ -11,6 +11,7 @@
 
 //#define L(i, j) L[i * N + j]
 #define L(i, j) L[((i * (i + 1))>>1) - 1 + j]
+#define G(i, j) G[((i * (i + 1))>>1) - 1 + j]
 #define _mm256_load_pd _mm256_loadu_pd
 //#define _mm256_store_pd _mm256_storeu_pd //TODO check memory alignment
 
@@ -48,7 +49,7 @@ in the active set(including itself)
 Compute ((X'X)^-1)w by solving (X'X)w = (LL')w = w
 */
 
-inline Real update_cholesky_n_solve(Real *L, Real *w, const Real *v, const int n, const int N,
+inline Real update_cholesky_n_solve(Real *L, Real *G, Real *w, const Real *v, const int n, const int N,
                   const Real *Xt, const int cur, const int* beta_id, const Real* beta_v, const int D) {
   __m256d sum_v1, sum_v2, sum_v3, sum_v4, sum_v5, sum_v6, sum_v7, sum_v8;
   __m256d tmp0, tmp1, tmp2, tmp3; //for macros
@@ -74,7 +75,7 @@ inline Real update_cholesky_n_solve(Real *L, Real *w, const Real *v, const int n
       sum0 = _mm256_hadd_pd(sum0, sum1);
       sum0 = _mm256_hadd_pd(sum0, sum0);
       _mm256_store_pd(tmp_arr, sum0);
-      L(n, i) = tmp_arr[0] + tmp_arr[2];
+      G(n, i) = L(n, i) = tmp_arr[0] + tmp_arr[2];
       w[i] = v[i];
     }
     /* compute mvms (BxB)(Bx1), avx and unroll4 */
@@ -149,10 +150,23 @@ inline Real update_cholesky_n_solve(Real *L, Real *w, const Real *v, const int n
     sum_v6 = _mm256_setzero_pd();
     sum_v7 = _mm256_setzero_pd();
     sum_v8 = _mm256_setzero_pd();
-    L(n, i) = 0.0;
-    for (int k = 0; k < D; k++) {
-      L(n, i) += Xt[cur * D + k] * Xt[beta_id[i] * D + k];
+
+    __m256d sum0 = _mm256_setzero_pd();
+    __m256d sum1 = _mm256_setzero_pd();
+    for (int x = 0; x < D; x += 8) {
+      __m256d cur0 = _mm256_load_pd(&Xt[cur * D + x]);
+      __m256d xt0  = _mm256_load_pd(&Xt[beta_id[i] * D + x]);
+      sum0 = _mm256_add_pd(sum0, _mm256_mul_pd(cur0, xt0));
+
+      __m256d cur1 = _mm256_load_pd(&Xt[cur * D + x + 4]);
+      __m256d xt1  = _mm256_load_pd(&Xt[beta_id[i] * D + x + 4]);
+      sum1 = _mm256_add_pd(sum1, _mm256_mul_pd(cur1, xt1));
     }
+    sum0 = _mm256_hadd_pd(sum0, sum1);
+    sum0 = _mm256_hadd_pd(sum0, sum0);
+    _mm256_store_pd(tmp_arr, sum0);
+    G(n, i) = L(n, i) = tmp_arr[0] + tmp_arr[2];
+
     for (k = 0; k <= i - 4 * VEC_SIZE; k += 4 * VEC_SIZE) {
       Real *L_i_k = &L(i, k);
       Real *L_n_k = &L(n, k);
@@ -230,11 +244,25 @@ inline Real update_cholesky_n_solve(Real *L, Real *w, const Real *v, const int n
     sum_s2 += L(n, k) * w[k];
   }
 
+  __m256d sum0 = _mm256_setzero_pd();
+  __m256d sum1 = _mm256_setzero_pd();
+  for (int x = 0; x < D; x += 8) {
+    __m256d cur0 = _mm256_load_pd(&Xt[cur * D + x]);
+    __m256d xt0  = _mm256_load_pd(&Xt[beta_id[n] * D + x]);
+    sum0 = _mm256_add_pd(sum0, _mm256_mul_pd(cur0, xt0));
 
-  Real L_n_n = 0.0;
-  for (k = 0; k < D; k++) {
-    L_n_n += Xt[cur * D + k] * Xt[beta_id[n] * D + k];
+    __m256d cur1 = _mm256_load_pd(&Xt[cur * D + x + 4]);
+    __m256d xt1  = _mm256_load_pd(&Xt[beta_id[n] * D + x + 4]);
+    sum1 = _mm256_add_pd(sum1, _mm256_mul_pd(cur1, xt1));
   }
+  sum0 = _mm256_hadd_pd(sum0, sum1);
+  sum0 = _mm256_hadd_pd(sum0, sum0);
+  _mm256_store_pd(tmp_arr, sum0);
+
+  Real L_n_n = tmp_arr[0] + tmp_arr[2];
+
+  G(n, n) = L_n_n;
+
   L_n_n = sqrt(fmax(L_n_n - sum_s1, EPSILON));
   w[n] = (v[n] - sum_s2) / L_n_n;
   L(n, n) = L_n_n;
@@ -255,7 +283,7 @@ inline Real update_cholesky_n_solve(Real *L, Real *w, const Real *v, const int n
       }
     }
     /* compute mvms (BxB)(Bx1) */
-    for (b_k = b_i - B; b_k >= -1; b_k -= B) {
+    for (b_k = b_i - B; b_k - B >= -1; b_k -= B) {
       for (i = b_i; i > b_i - B; i--) {
         __m256d w_i = _mm256_set1_pd(w[i]);
         for (k = b_k - B + 1; k <= b_k - 4 * VEC_SIZE + 1; k += 4 * VEC_SIZE) {

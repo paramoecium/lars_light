@@ -5,6 +5,7 @@
 
 #ifndef LARS_CPP
 #define LARS_CPP
+#define G(i, j) G[((i * (i + 1))>>1) - 1 + j]
 
 Lars::Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in, Timer &timer_in):
     Xt(Xt_in), D(D_in), K(K_in), lambda(lambda_in), timer(timer_in) {
@@ -148,7 +149,7 @@ bool Lars::iterate() {
   // new active row to add to gram matrix of active set
 
   timer.start(FUSED_CHOLESKY);
-  Real AA = update_cholesky_n_solve(L, w, sgn, active_itr, active_size, Xt, cur, beta_id, beta_v, D);
+  Real AA = update_cholesky_n_solve(L, G, w, sgn, active_itr, active_size, Xt, cur, beta_id, beta_v, D);
   timer.end(FUSED_CHOLESKY);
 
   // get the actual w[]
@@ -159,19 +160,49 @@ bool Lars::iterate() {
   memset(u, 0, D*sizeof(Real));
 	std::sort(tmp_int, tmp_int + (active_itr + 1), [this](int i, int j) {return beta_id[i]<beta_id[j];});
   // u = X_a * w
-  for (int i = 0; i <= active_itr; ++i) {
-		w[tmp_int[i]] *= AA;
-    for (int j = 0; j < D; j++) {
-      u[j] += w[tmp_int[i]] * Xt[beta_id[tmp_int[i]] * D + j];
-    }
-  }
+ // for (int i = 0; i <= active_itr; ++i) {
+ // 	w[tmp_int[i]] *= AA;
+ //   for (int j = 0; j < D; j++) {
+ //     u[j] += w[tmp_int[i]] * Xt[beta_id[tmp_int[i]] * D + j];
+ //   }
+ // }
 
-  // a = X' * u
-  for (int i = 0; i < K; i++) {
-    for (int j = 0; j < D; j++) {
-      a[i] += Xt[i * D + j] * u[j];
-    }
-  }
+ // // a = X' * u
+ // for (int i = 0; i < K; i++) {
+ //   for (int j = 0; j < D; j++) {
+ //     a[i] += Xt[i * D + j] * u[j];
+ //   }
+ // }
+	timer.start(GET_A);
+	memset(tmp, 0, (1+active_itr)*sizeof(Real));
+	for (int i = 0; i <= active_itr; i++) {
+		w[i] *= AA;
+		for (int j = 0; j < i; j++) {
+//			tmp[j] += G[i * active_size + j] * w[i];
+//			tmp[i] += G[i * active_size + j] * w[j];
+			tmp[j] += G(i, j) * w[i];
+			tmp[i] += G(i, j) * w[j];
+		}
+//		tmp[i] += G[i * active_size + i] * w[i];
+		tmp[i] += G(i, i) * w[i];
+	} 
+
+	for (int i = 0; i <= active_itr; ++i) {
+		for (int j = 0; j < D; j++) {
+			u[j] += w[i] * Xt[beta_id[i] * D + j];
+		}
+	}
+	
+	for (int i = 0; i < K; i++) {
+		if (active[i] >= 0) a[i] = tmp[(int)active[i]];
+		else {
+			for (int j = 0; j < D; j++) {
+				a[i] += Xt[i * D + j] * u[j];
+			}
+		}
+	}
+
+	timer.end(GET_A);
 
   timer.start(GET_GAMMA);
   gamma = C / AA;
@@ -294,20 +325,49 @@ void Lars::getParameters(Real* beta_out) const {
 // computes lambda given beta, lambda = max(abs(2*X'*(X*beta - y)))
 inline Real Lars::compute_lambda() {
   // compute (y - X*beta)
+  timer.start(COMPUTE_LAMBDA);
   memcpy(tmp, y, D * sizeof(Real));
-  for (int i = 0; i < active_itr; i++) {
-    for (int j = 0; j < D; j++)
-      tmp[j] -= Xt[beta_id[tmp_int[i]] * D + j] * beta_v[tmp_int[i]];
-  }
-  // compute X'*(y - X*beta)
+//  for (int i = 0; i < active_itr; i++) {
+//    for (int j = 0; j < D; j++)
+//      tmp[j] -= Xt[beta_id[tmp_int[i]] * D + j] 
+//                * beta_v[tmp_int[i]];
+//  }
+//  // compute X'*(y - X*beta)
+//  Real max_lambda = Real(0.0);
+//  for (int i = 0; i < K; ++i) {
+//    Real lambda = 0;
+//    for (int j = 0; j < D; j++) 
+//      lambda += Xt[i * D + j] * tmp[j];
+//    max_lambda = fmax(max_lambda, fabs(lambda));
+//  }
+
   Real max_lambda = Real(0.0);
-  for (int i = 0; i < K; ++i) {
-    Real lambda = 0;
-    for (int j = 0; j < D; j++) lambda += Xt[i * D + j] * tmp[j];
-    max_lambda = fmax(max_lambda, fabs(lambda));
+  for (int i = 0; i <= active_itr; i++) {
+    for (int j = 0; j < i; j++) {
+      tmp[j] -= G(i, j) * beta_v[i];
+      tmp[i] -= G(i, j) * beta_v[j];
+    }
+    tmp[i] -= G(i, i) * beta_v[i];
   }
+  
+  for (int i = 0; i <= active_itr; ++i) {
+    max_lambda = fmax(max_lambda, tmp[i]);
+    for (int j = 0; j < D; j++) {
+      u[j] += w[i] * Xt[beta_id[i] * D + j];
+    }
+  }
+
+  for (int i = 0; i < K; i++) {
+    Real lambda = 0;
+    if (active[i] >= 0) continue;
+    for (int j = 0; j < D; j++) {
+       lambda += Xt[i * D + j] * beta_v[j];
+    }
+  }
+  timer.end(COMPUTE_LAMBDA);
   return max_lambda;
 }
+
 
 
 #endif
