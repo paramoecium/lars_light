@@ -173,22 +173,70 @@ bool Lars::iterate() {
     }
   }
 
-  gamma = C / AA;
-  int gamma_id = cur;
-  if (active_itr < active_size) {
-    print("C=%.3f AA=%.3f\n", C, AA);
-    for (int i = 0; i < K; i++) {
-      if ((int)active[i] >= 0) continue;
-      Real t1 = (C - c[i]) / (AA - a[i]);
-      Real t2 = (C + c[i]) / (AA + a[i]);
-      print("%d : t1 = %.3f, t2 = %.3f\n", i, t1, t2);
+//  gamma = C / AA;
+//  int gamma_id = cur;
+//  if (active_itr < active_size) {
+//    print("C=%.3f AA=%.3f\n", C, AA);
+//    for (int i = 0; i < K; i++) {
+//      if ((int)active[i] >= 0) continue;
+//      Real t1 = (C - c[i]) / (AA - a[i]);
+//      Real t2 = (C + c[i]) / (AA + a[i]);
+//      print("%d : t1 = %.3f, t2 = %.3f\n", i, t1, t2);
+//
+//      if (t1 > 0 and t1 < gamma) gamma = t1, gamma_id=i;
+//      if (t2 > 0 and t2 < gamma) gamma = t2, gamma_id=i;
+//    }
+//  }
+//  print("gamma = %.3f from %d col\n", gamma, gamma_id);
 
-      if (t1 > 0 and t1 < gamma) gamma = t1, gamma_id=i;
-      if (t2 > 0 and t2 < gamma) gamma = t2, gamma_id=i;
+  timer.start(GET_GAMMA);
+  gamma = C / AA;
+  gamma_id = cur;
+  if (active_itr < active_size) {
+    __m256d cc_c = _mm256_set1_pd(C);
+    __m256d aa_c  = _mm256_set1_pd(AA);
+    __m256d min_p = _mm256_set1_pd(gamma);
+    __m256d min_m = _mm256_set1_pd(gamma);
+    __m256d id_p = _mm256_set1_pd(cur);
+    __m256d id_m = _mm256_set1_pd(cur);
+    __m256d pos_v = _mm256_set_pd(-1.0, -2.0, -3.0, -4.0);
+    __m256d four = _mm256_set1_pd(4.0);
+    for (int i = 0; i < K; i+=4) {
+      __m256d act_v = _mm256_load_pd(&active[i]);
+      __m256d cc = _mm256_load_pd(&c[i]);
+      __m256d aa = _mm256_load_pd(&a[i]);
+      __m256d c_minus = _mm256_add_pd(cc_c, -cc);
+      __m256d c_plus  = _mm256_add_pd(cc_c, cc);
+      __m256d a_minus = _mm256_add_pd(aa_c, -aa);
+      __m256d a_plus  = _mm256_add_pd(aa_c, aa);
+      __m256d ca_minus = _mm256_div_pd(c_minus, a_minus);
+      __m256d ca_plus  = _mm256_div_pd(c_plus, a_plus);
+
+      act_v = _mm256_cmp_pd(act_v, zero, _CMP_LT_OS);
+      __m256d l0_minus = _mm256_cmp_pd(zero, ca_minus, _CMP_LT_OS);
+      __m256d lg_minus = _mm256_cmp_pd(ca_minus, min_m, _CMP_LT_OS);
+      __m256d ok_minus = _mm256_and_pd(l0_minus, lg_minus);
+      ok_minus = _mm256_and_pd(act_v, ok_minus);
+
+      __m256d l0_plus  = _mm256_cmp_pd(zero, ca_plus, _CMP_LT_OS);
+      __m256d lg_plus  = _mm256_cmp_pd(ca_plus, min_p, _CMP_LT_OS);
+      __m256d ok_plus  = _mm256_and_pd(l0_plus, lg_plus);
+      ok_plus = _mm256_and_pd(act_v, ok_plus);
+
+      pos_v = _mm256_add_pd(pos_v, four);
+      min_m = _mm256_blendv_pd(min_m, ca_minus, ok_minus);
+      id_m  = _mm256_blendv_pd( id_m, pos_v, ok_minus);
+      min_p = _mm256_blendv_pd(min_p, ca_plus, ok_plus);
+      id_p  = _mm256_blendv_pd( id_p, pos_v, ok_plus);
+    }
+    _mm256_store_pd(tmp, min_m);
+    _mm256_store_pd(tmp+4, min_p);
+    _mm256_store_pd(tmp+8,  id_m);
+    _mm256_store_pd(tmp+12, id_p);
+    for (int i = 0; i < 8; i++) {
+      if (tmp[i] < gamma) gamma = tmp[i], gamma_id = (int)tmp[i+8];
     }
   }
-  print("gamma = %.3f from %d col\n", gamma, gamma_id);
-
   // add gamma * w to beta
   for (int i = 0; i <= active_itr; ++i)
     beta_v[i] += gamma * w[i];
