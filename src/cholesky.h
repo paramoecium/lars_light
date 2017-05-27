@@ -60,10 +60,21 @@ inline Real update_cholesky_n_solve(Real *L, Real *w, const Real *v, const int n
   for (b_i = 0; b_i + B <= n; b_i += B) {
     /* initialize L(n, i) and w[i] */
     for (i = b_i; i < b_i + B; i++) { // TODO Lily
-      L(n, i) = 0.0;
-      for (int k = 0; k < D; k++) {
-        L(n, i) += Xt[cur * D + k] * Xt[beta_id[i] * D + k];
+      __m256d sum0 = _mm256_setzero_pd();
+      __m256d sum1 = _mm256_setzero_pd();
+      for (int x = 0; x < D; x += 8) {
+        __m256d cur0 = _mm256_load_pd(&Xt[cur * D + x]);
+        __m256d xt0  = _mm256_load_pd(&Xt[beta_id[i] * D + x]);
+        sum0 = _mm256_add_pd(sum0, _mm256_mul_pd(cur0, xt0));
+
+        __m256d cur1 = _mm256_load_pd(&Xt[cur * D + x + 4]);
+        __m256d xt1  = _mm256_load_pd(&Xt[beta_id[i] * D + x + 4]);
+        sum1 = _mm256_add_pd(sum1, _mm256_mul_pd(cur1, xt1));
       }
+      sum0 = _mm256_hadd_pd(sum0, sum1);
+      sum0 = _mm256_hadd_pd(sum0, sum0);
+      _mm256_store_pd(tmp_arr, sum0);
+      L(n, i) = tmp_arr[0] + tmp_arr[2];
       w[i] = v[i];
     }
     /* compute mvms (BxB)(Bx1), avx and unroll4 */

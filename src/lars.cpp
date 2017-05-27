@@ -47,7 +47,7 @@ void Lars::set_y(const Real *y_in) {
 
 	for (int i = 0; i < active_size; i++) tmp_int[i] = i;
 
-  tiemr.start(INIT_CORRELATION);
+  timer.start(INIT_CORRELATION);
   for (int i = 0; i < K; i += 4) {
     active[i+0] = -1;
     active[i+1] = -1;
