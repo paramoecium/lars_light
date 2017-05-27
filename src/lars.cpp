@@ -47,13 +47,11 @@ void Lars::set_y(const Real *y_in) {
 
 	for (int i = 0; i < active_size; i++) tmp_int[i] = i;
 
-  timer.start(INIT_CORRELATION);
   for (int i = 0; i < K; i++) {
     for (int j = 0; j < D; j++) {
       c[i] += Xt[i * D + j] * y[j];
     }
   }
-  timer.end(INIT_CORRELATION);
 }
 
 Lars::~Lars() {
@@ -65,7 +63,6 @@ bool Lars::iterate() {
 
 	Real C = 0.0;
 	int cur = -1;
-	timer.start(GET_ACTIVE_IDX);
 	for (int i = 0; i < K; ++i) {
 		c[i] -= gamma * a[i];
 
@@ -76,7 +73,6 @@ bool Lars::iterate() {
 			sgn[active[i]] = sign(c[i]);
 		}
 	}
-	timer.end(GET_ACTIVE_IDX);
 
   // All remainging C are 0
   if (cur == -1) return false;
@@ -105,25 +101,20 @@ bool Lars::iterate() {
   memset(u, 0, D*sizeof(Real));
 	std::sort(tmp_int, tmp_int + (active_itr + 1), [this](int i, int j) {return beta_id[i]<beta_id[j];});
   // u = X_a * w
-  timer.start(GET_U);// Fuse GET_W
   for (int i = 0; i <= active_itr; ++i) {
 		w[tmp_int[i]] *= AA;
     for (int j = 0; j < D; j++) {
       u[j] += w[tmp_int[i]] * Xt[beta_id[tmp_int[i]] * D + j];
     }
   }
-  timer.end(GET_U);
 
   // a = X' * u
-  timer.start(GET_A);
   for (int i = 0; i < K; i++) {
     for (int j = 0; j < D; j++) {
       a[i] += Xt[i * D + j] * u[j];
     }
   }
-  timer.end(GET_A);
 
-  timer.start(GET_GAMMA);
   gamma = C / AA;
   int gamma_id = cur;
   if (active_itr < active_size) {
