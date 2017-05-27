@@ -162,30 +162,15 @@ bool Lars::iterate() {
   memset(u, 0, D*sizeof(Real));
 	std::sort(tmp_int, tmp_int + (active_itr + 1), [this](int i, int j) {return beta_id[i]<beta_id[j];});
   // u = X_a * w
- // for (int i = 0; i <= active_itr; ++i) {
- // 	w[tmp_int[i]] *= AA;
- //   for (int j = 0; j < D; j++) {
- //     u[j] += w[tmp_int[i]] * Xt[beta_id[tmp_int[i]] * D + j];
- //   }
- // }
-
- // // a = X' * u
- // for (int i = 0; i < K; i++) {
- //   for (int j = 0; j < D; j++) {
- //     a[i] += Xt[i * D + j] * u[j];
- //   }
- // }
+  // a = X' * u
 	timer.start(GET_A);
 	memset(tmp, 0, (1+active_itr)*sizeof(Real));
 	for (int i = 0; i <= active_itr; i++) {
 		w[i] *= AA;
 		for (int j = 0; j < i; j++) {
-//			tmp[j] += G[i * active_size + j] * w[i];
-//			tmp[i] += G[i * active_size + j] * w[j];
 			tmp[j] += G(i, j) * w[i];
 			tmp[i] += G(i, j) * w[j];
 		}
-//		tmp[i] += G[i * active_size + i] * w[i];
 		tmp[i] += G(i, i) * w[i];
 	} 
 
@@ -274,7 +259,6 @@ bool Lars::iterate() {
     beta_v[i] += gamma * w[i];
   }
 
-
   active_itr++;
 
   return true;
@@ -329,12 +313,13 @@ inline Real Lars::compute_lambda() {
   // compute (y - X*beta)
   timer.start(COMPUTE_LAMBDA);
   memcpy(tmp, y, D * sizeof(Real));
+  memcpy(u, y, D * sizeof(Real));
 //  for (int i = 0; i < active_itr; i++) {
 //    for (int j = 0; j < D; j++)
 //      tmp[j] -= Xt[beta_id[tmp_int[i]] * D + j] 
 //                * beta_v[tmp_int[i]];
 //  }
-//  // compute X'*(y - X*beta)
+//  // compute X'*(y - X_A*beta)
 //  Real max_lambda = Real(0.0);
 //  for (int i = 0; i < K; ++i) {
 //    Real lambda = 0;
@@ -344,7 +329,7 @@ inline Real Lars::compute_lambda() {
 //  }
 
   Real max_lambda = Real(0.0);
-  for (int i = 0; i <= active_itr; i++) {
+  for (int i = 0; i < active_itr; i++) {
     for (int j = 0; j < i; j++) {
       tmp[j] -= G(i, j) * beta_v[i];
       tmp[i] -= G(i, j) * beta_v[j];
@@ -352,20 +337,22 @@ inline Real Lars::compute_lambda() {
     tmp[i] -= G(i, i) * beta_v[i];
   }
   
-  for (int i = 0; i <= active_itr; ++i) {
+  for (int i = 0; i < active_itr; i++) {
     max_lambda = fmax(max_lambda, tmp[i]);
     for (int j = 0; j < D; j++) {
-      u[j] += w[i] * Xt[beta_id[i] * D + j];
+      u[j] -= Xt[beta_id[i] * D + j] * beta_v[i];
     }
   }
+  if (max_lambda < 1e-9) max_lambda = 0.0001;
 
-  for (int i = 0; i < K; i++) {
-    Real lambda = 0;
-    if (active[i] >= 0) continue;
-    for (int j = 0; j < D; j++) {
-       lambda += Xt[i * D + j] * beta_v[j];
-    }
-  }
+//  for (int i = 0; i < K; i++) {
+//    Real lambda = 0;
+//    if (active[i] >= 0) continue;
+//    for (int j = 0; j < D; j++) {
+//       lambda += Xt[i * D + j] * u[j];
+//    }
+//    max_lambda = fmax(max_lambda, fabs(lambda));
+//  }
   timer.end(COMPUTE_LAMBDA);
   return max_lambda;
 }
