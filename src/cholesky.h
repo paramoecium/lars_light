@@ -49,7 +49,7 @@ Compute ((X'X)^-1)w by solving (X'X)w = (LL')w = w
 */
 
 inline Real update_cholesky_n_solve(Real *L, Real *w, const Real *v, const int n, const int N,
-                  const Real *Xt, const int cur, const Idx *beta, const int D) {
+                  const Real *Xt, const int cur, const int* beta_id, const Real* beta_v, const int D) {
   __m256d sum_v1, sum_v2, sum_v3, sum_v4, sum_v5, sum_v6, sum_v7, sum_v8;
   __m256d tmp0, tmp1, tmp2, tmp3; //for macros
   Real tmp_arr[2 * VEC_SIZE];
@@ -62,7 +62,7 @@ inline Real update_cholesky_n_solve(Real *L, Real *w, const Real *v, const int n
     for (i = b_i; i < b_i + B; i++) { // TODO Lily
       L(n, i) = 0.0;
       for (int k = 0; k < D; k++) {
-        L(n, i) += Xt[cur * D + k] * Xt[beta[i].id * D + k];
+        L(n, i) += Xt[cur * D + k] * Xt[beta_id[i] * D + k];
       }
       w[i] = v[i];
     }
@@ -140,7 +140,7 @@ inline Real update_cholesky_n_solve(Real *L, Real *w, const Real *v, const int n
     sum_v8 = _mm256_setzero_pd();
     L(n, i) = 0.0;
     for (int k = 0; k < D; k++) {
-      L(n, i) += Xt[cur * D + k] * Xt[beta[i].id * D + k];
+      L(n, i) += Xt[cur * D + k] * Xt[beta_id[i] * D + k];
     }
     for (k = 0; k <= i - 4 * VEC_SIZE; k += 4 * VEC_SIZE) {
       Real *L_i_k = &L(i, k);
@@ -222,7 +222,7 @@ inline Real update_cholesky_n_solve(Real *L, Real *w, const Real *v, const int n
 
   Real L_n_n = 0.0;
   for (k = 0; k < D; k++) {
-    L_n_n += Xt[cur * D + k] * Xt[beta[n].id * D + k];
+    L_n_n += Xt[cur * D + k] * Xt[beta_id[n] * D + k];
   }
   L_n_n = sqrt(fmax(L_n_n - sum_s1, EPSILON));
   w[n] = (v[n] - sum_s2) / L_n_n;

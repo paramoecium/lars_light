@@ -90,7 +90,7 @@ bool Lars::iterate() {
   // new active row to add to gram matrix of active set
 
   timer.start(FUSED_CHOLESKY);
-  Real AA = update_cholesky_n_solve(L, w, sgn, active_itr, active_size, Xt, cur, beta, D);
+  Real AA = update_cholesky_n_solve(L, w, sgn, active_itr, active_size, Xt, cur, beta_id, beta_v, D);
   timer.end(FUSED_CHOLESKY);
 
   // get the actual w[]
