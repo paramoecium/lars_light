@@ -414,74 +414,74 @@ inline Real Lars::compute_lambda() {
 	for (int b_j = 0; b_j < B_cnt * B_size; b_j += B_size) {
 		for (int b_i = 0; b_i < D; b_i += B_size) {
 			for (int j = b_j; j < b_j + B_size; j++) {
-				__m256d uu = _mm256_setzero_pd();
-				for (int i = b_i; i < b_i + B_size; i+=4) {
+				__m256d sum = _mm256_setzero_pd();
+				for (int i = b_i; i < b_i + B_size; i+= 4) {
 					__m256d xt = _mm256_load_pd(&Xt[beta_id[j] * D + i]);
 					__m256d yy = _mm256_load_pd(&y[i]);
-					uu = _mm256_fmadd_pd(xt, yy, uu);
+					sum = _mm256_fmadd_pd( xt, yy, sum);
 				}
-				Real u01 = tmp[0] + tmp[1];
-				Real u23 = tmp[2] + tmp[3];
-				u[j] += u01 + u23;
+				_mm256_store_pd(tmp, sum);
+				Real tmp01 = tmp[0] + tmp[1];
+				Real tmp23 = tmp[2] + tmp[3];
+				u[j] += tmp01 + tmp23;
 			}
 		}
 	}
 	for (int j = B_cnt * B_size; j < active_itr; j++) {
-		for (int i = 0; i < D; i++) {
-			u[j] += Xt[beta_id[j] * D + i] * y[i];
+		__m256d sum = _mm256_setzero_pd();
+		for (int i = 0; i < D; i+=4) {
+			__m256d xt = _mm256_load_pd(&Xt[beta_id[j] * D + i]);
+			__m256d yy = _mm256_load_pd(&y[i]);
+			sum = _mm256_fmadd_pd( xt, yy, sum);
 		}
+		_mm256_store_pd(tmp, sum);
+		Real tmp01 = tmp[0] + tmp[1];
+		Real tmp23 = tmp[2] + tmp[3];
+		u[j] += tmp01 + tmp23;
 	}
 
-	for (int i = 0; i < active_itr; i++) {
-		for (int j = 0; j < i; j++) {
-			u[i] -= G(i, j) * beta_v[j];
-			u[j] -= G(i, j) * beta_v[i];
+	for (int b_j = 0; b_j < B_cnt * B_size; b_j += B_size) {
+		// b_i == b_j
+		for (int j = b_j; j < b_j + B_size; j++) {
+			for (int i = b_j; i < j; i++) {
+				u[j] -= G(j, i) * beta_v[i];
+				u[i] -= G(j, i) * beta_v[j];
+			}
+			u[j] -= G(j, j) * beta_v[j];
 		}
-		// j == i
-		u[i] -= G(i, i) * beta_v[i];
+	
+		for (int b_i = 0; b_i < b_j; b_i += B_size) {
+			for (int j = b_j; j < b_j + B_size; j++) {
+				__m256d u_j = _mm256_setzero_pd();
+				for (int i = b_i; i < b_i + B_size; i+=4) {
+					__m256d g_ji = _mm256_load_pd(&G(j, i));
+					__m256d u_i  = _mm256_load_pd(&u[i]);
+					__m256d v_i  = _mm256_load_pd(&beta_v[i]);
+					__m256d v_j  = _mm256_set1_pd(beta_v[j]);
+
+					u_j = _mm256_fnmadd_pd(g_ji, v_i, u_j);
+					u_i = _mm256_fnmadd_pd(g_ji, v_j, u_i);
+					_mm256_store_pd(&u[i], u_i);
+
+//					u[j] -= G(j, i) * beta_v[i];
+//					u[i] -= G(j, i) * beta_v[j];
+				}
+				_mm256_store_pd(tmp, u_j);
+				Real tmp01 = tmp[0] + tmp[1];
+				Real tmp23 = tmp[2] + tmp[3];
+				u[j] += tmp01 + tmp23;
+			}
+		}
 	}
-//	for (int b_j = 0; b_j < B_cnt * B_size; b_j += B_size) {
-//		// b_i == b_j
-//		for (int j = b_j; j < b_j + B_size; j++) {
-//			for (int i = b_j; i < j; i++) {
-//				u[j] -= G(j, i) * beta_v[i];
-//				u[i] -= G(j, i) * beta_v[j];
-//			}
-//			u[j] -= G(j, j) * beta_v[j];
-//		}
-//	
-//		for (int b_i = 0; b_i < b_j; b_i += B_size) {
-//			for (int j = b_j; j < b_j + B_size; j++) {
-//				__m256d u_j = _mm256_setzero_pd();
-//				for (int i = b_i; i < b_i + B_size; i+=4) {
-//					__m256d g_ji = _mm256_load_pd(&G(j, i));
-//					__m256d u_i  = _mm256_load_pd(&u[i]);
-//					__m256d v_i  = _mm256_load_pd(&beta_v[i]);
-//					__m256d v_j  = _mm256_set1_pd(beta_v[j]);
-//
-//					u_j = _mm256_fnmadd_pd(g_ji, v_i, u_j);
-//					u_i = _mm256_fnmadd_pd(g_ji, v_j, u_i);
-//					_mm256_store_pd(&u[i], u_i);
-//
-////					u[j] -= G(j, i) * beta_v[i];
-////					u[i] -= G(j, i) * beta_v[j];
-//				}
-//				_mm256_store_pd(tmp, u_j);
-//				Real tmp01 = tmp[0] + tmp[1];
-//				Real tmp23 = tmp[2] + tmp[3];
-//				u[j] += tmp01 + tmp23;
-//			}
-//		}
-//	}
-//	
-//	// residual
-//	for (int j = B_cnt * B_size; j < active_itr; j++) {
-//		for (int i = 0; i < j; i++) {
-//			u[i] -= G(j, i) * beta_v[j];
-//			u[j] -= G(j, i) * beta_v[i];
-//		}
-//		u[j] -= G(j, j) * beta_v[j];
-//	}
+	
+	// residual
+	for (int j = B_cnt * B_size; j < active_itr; j++) {
+		for (int i = 0; i < j; i++) {
+			u[i] -= G(j, i) * beta_v[j];
+			u[j] -= G(j, i) * beta_v[i];
+		}
+		u[j] -= G(j, j) * beta_v[j];
+	}
 
 	for (int i = 0; i < active_itr; i++) 
 		max_lambda = fmax(max_lambda, fabs(u[i]));
