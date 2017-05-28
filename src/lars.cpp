@@ -186,20 +186,36 @@ bool Lars::iterate() {
 			tmp[j] = tmp_j_0 + tmp_j_1;
 		}
 
+
 		for (int b_i = 0; b_i < b_j; b_i += B_size) {
 			for (int j = b_j; j < b_j + B_size; j++) {
-				Real tmp_j_0 = 0, tmp_j_1 = 0;
-				for (int i = b_i; i < b_i + B_size; i+=2) {
-					tmp_j_0 += G(j, i+0) * w[i+0];
-					tmp_j_1 += G(j, i+1) * w[i+1];
-					tmp[i+0]+= G(j, i+0) * w[j];
-					tmp[i+1]+= G(j, i+1) * w[j];
+				__m256d t_j0 = _mm256_setzero_pd();
+				__m256d t_j1 = _mm256_setzero_pd();
+				for (int i = b_i; i < b_i + B_size; i+=8) {
+					__m256d g_ji0 = _mm256_load_pd(&G(j, i));
+					__m256d g_ji1 = _mm256_load_pd(&G(j, i + 4));
+					__m256d t_i0 = _mm256_load_pd(&tmp[i]);
+					__m256d t_i1 = _mm256_load_pd(&tmp[i + 4]);
+					__m256d w_i0 = _mm256_load_pd(&w[i]);
+					__m256d w_i1 = _mm256_load_pd(&w[i+4]);
+					__m256d w_j = _mm256_set1_pd(w[j]);
+
+					t_j0 = _mm256_fmadd_pd(g_ji0, w_i0, t_j0);
+					t_j1 = _mm256_fmadd_pd(g_ji1, w_i1, t_j1);
+					t_i0 = _mm256_fmadd_pd(g_ji0, w_j , t_i0);
+					t_i1 = _mm256_fmadd_pd(g_ji1, w_j , t_i1);
+					_mm256_store_pd(&tmp[i], t_i0);
+					_mm256_store_pd(&tmp[i+4], t_i1);
+
+//					t[j] -= G(j, i) * beta_w[i];
+//					t[i] -= G(j, i) * beta_w[j];
 				}
-				tmp[j] += tmp_j_0 + tmp_j_1;
-//				for (int i = b_i; i < b_i + B_size; i++) {
-//					tmp[j] += G(j, i) * w[i];
-//					tmp[i] += G(j, i) * w[j];
-//				}
+				__m256d t_j = _mm256_add_pd(t_j0, t_j1);
+				Real tmp_arr[4];
+				_mm256_store_pd(tmp_arr, t_j);
+				Real tmp01 = tmp_arr[0] + tmp_arr[1];
+				Real tmp23 = tmp_arr[2] + tmp_arr[3];
+				tmp[j] += tmp01 + tmp23;
 			}
 		}
 	}
@@ -223,19 +239,37 @@ bool Lars::iterate() {
 		tmp[j] += tmp_j_1 + tmp_j_0;
 	}
 
-	// Xt_a * w
+	// X_a * w
 	for (int b_j = 0; b_j < B_cnt * B_size; b_j += B_size) {
 		for (int b_i = 0; b_i < D; b_i += B_size) {
 			for (int j = b_j; j < b_j + B_size; j++) {
-				for (int i = b_i; i < b_i + B_size; i++) {
-					u[i] += w[j] * Xt[beta_id[j] * D + i];
+				__m256d ww = _mm256_set1_pd(w[j]);
+				for (int i = b_i; i < b_i + B_size; i+=8) {
+					__m256d u0 = _mm256_load_pd(&u[i]);
+					__m256d u1 = _mm256_load_pd(&u[i+4]);
+					__m256d x0 = _mm256_load_pd(&Xt[beta_id[j] * D + i]);
+					__m256d x1 = _mm256_load_pd(&Xt[beta_id[j] * D + i+4]);
+					_mm256_store_pd(&u[i], _mm256_fmadd_pd(ww, x0, u0));
+					_mm256_store_pd(&u[i+4], _mm256_fmadd_pd(ww, x1, u1));
 				}
 			}
 		}
 	}
 	for (int j = B_cnt * B_size; j <= active_itr; j++) {
-		for (int i = 0; i < D; i++) {
-			u[i] += w[j] * Xt[beta_id[j] * D + i];
+		__m256d ww = _mm256_set1_pd(w[j]);
+		for (int i = 0; i < D; i+=16) {
+			__m256d u0 = _mm256_load_pd(&u[i]);
+			__m256d u1 = _mm256_load_pd(&u[i+4]);
+			__m256d u2 = _mm256_load_pd(&u[i+8]);
+			__m256d u3 = _mm256_load_pd(&u[i+12]);
+			__m256d x0 = _mm256_load_pd(&Xt[beta_id[j] * D + i]);
+			__m256d x1 = _mm256_load_pd(&Xt[beta_id[j] * D + i + 4]);
+			__m256d x2 = _mm256_load_pd(&Xt[beta_id[j] * D + i + 8]);
+			__m256d x3 = _mm256_load_pd(&Xt[beta_id[j] * D + i + 12]);
+			_mm256_store_pd(&u[i], _mm256_fmadd_pd(ww, x0, u0));
+			_mm256_store_pd(&u[i+4], _mm256_fmadd_pd(ww, x1, u1));
+			_mm256_store_pd(&u[i+8], _mm256_fmadd_pd(ww, x2, u2));
+			_mm256_store_pd(&u[i+12], _mm256_fmadd_pd(ww, x3, u3));
 		}
 	}
 	
@@ -250,17 +284,22 @@ bool Lars::iterate() {
 				//for (int i = b_i; i < b_i + B_size; i++) {
 				//	a[j] += Xt[j * D + i] * u[i];
 				//}
-				Real a_j_0 = 0, a_j_1 = 0;
-				Real a_j_2 = 0, a_j_3 = 0;
-				for (int i = b_i; i < b_i + B_size; i+=4) {
-					a_j_0 += Xt[j * D + i+0] * u[i+0];
-					a_j_1 += Xt[j * D + i+1] * u[i+1];
-					a_j_2 += Xt[j * D + i+2] * u[i+2];
-					a_j_3 += Xt[j * D + i+3] * u[i+3];
+				__m256d sum0 = _mm256_setzero_pd();
+				__m256d sum1 = _mm256_setzero_pd();
+				for (int i = b_i; i < b_i + B_size; i+= 8) {
+					__m256d xt0 = _mm256_load_pd(&Xt[j * D + i]);
+					__m256d yy0 = _mm256_load_pd(&u[i]);
+					__m256d xt1 = _mm256_load_pd(&Xt[j * D + i+4]);
+					__m256d yy1 = _mm256_load_pd(&u[i+4]);
+					sum0 = _mm256_fmadd_pd( xt0, yy0, sum0);
+					sum1 = _mm256_fmadd_pd( xt1, yy1, sum1);
 				}
-				a_j_0 += a_j_2;
-				a_j_1 += a_j_3;
-				a[j] += a_j_0 + a_j_1;
+				__m256d sum = _mm256_add_pd(sum0, sum1);
+				Real tmp_arr[4];
+				_mm256_store_pd(tmp_arr, sum);
+				Real tmp01 = tmp_arr[0] + tmp_arr[1];
+				Real tmp23 = tmp_arr[2] + tmp_arr[3];
+				a[j] += tmp01 + tmp23;
 			}
 		}
 	}
