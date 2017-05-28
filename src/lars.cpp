@@ -94,7 +94,8 @@ bool Lars::iterate() {
   // AA = 1 / sqrt(sum of all entries in the inverse of G_A);
   Real AA = 0.0;
   for (int i = 0; i <= active_itr; ++i) {
-    AA += w[i] * sign(c[beta[i].id]);
+    //AA += w[i] * sign(c[beta[i].id]);
+    AA += fabs(w[i]);
   }
   AA = 1.0 / sqrt(AA);
   print("AA: %.3f\n", AA);
