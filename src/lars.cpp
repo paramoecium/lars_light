@@ -172,15 +172,21 @@ bool Lars::iterate() {
 	for (int b_j = 0; b_j < B_cnt * B_size; b_j += B_size) {
 		for (int b_i = 0; b_i < D; b_i += B_size) {
 			for (int j = b_j; j < b_j + B_size; j++) {
-				for (int i = b_i; i < b_i + B_size; i++) {
-					u[i] += w[tmp_int[j]] * Xt[beta_id[tmp_int[j]] * D + i];
+				__m256d ww = _mm256_set1_pd(w[tmp_int[j]]);
+				for (int i = b_i; i < b_i + B_size; i+=4) {
+					__m256d uu = _mm256_load_pd(&u[i]);
+					__m256d xx = _mm256_load_pd(&Xt[beta_id[tmp_int[j]] * D + i]);
+					_mm256_store_pd(&u[i], _mm256_fmadd_pd(ww, xx, uu));
 				}
 			}
 		}
 	}
 	for (int j = B_cnt * B_size; j <= active_itr; j++) {
-		for (int i = 0; i < D; i++) {
-			u[i] += w[tmp_int[j]] * Xt[beta_id[tmp_int[j]] * D + i];
+		__m256d ww = _mm256_set1_pd(w[tmp_int[j]]);
+		for (int i = 0; i < D; i += 4) {
+			__m256d uu = _mm256_load_pd(&u[i]);
+			__m256d xx = _mm256_load_pd(&Xt[beta_id[tmp_int[j]] * D + i]);
+			_mm256_store_pd(&u[i], _mm256_fmadd_pd(ww, xx, uu));
 		}
 	}
 
@@ -188,9 +194,17 @@ bool Lars::iterate() {
 	for (int b_j = 0; b_j < K; b_j += B_size) {
 		for (int b_i = 0; b_i < D; b_i += B_size) {
 			for (int j = b_j; j < b_j + B_size; j++) {
-				for (int i = b_i; i < b_i + B_size; i++) {
-					a[j] += u[i] * Xt[j * D + i];
+				__m256d sum0 = _mm256_setzero_pd();
+				for (int i = b_i; i < b_i + B_size; i+=4) {
+					__m256d u0 = _mm256_load_pd(&u[i]);
+					__m256d x0 = _mm256_load_pd(&Xt[j * D + i]);
+					sum0 = _mm256_fmadd_pd(x0, u0, sum0);
 				}
+				Real tmp_arr[4];
+				_mm256_store_pd(tmp_arr, sum0);
+				Real tmp01 = tmp_arr[0] + tmp_arr[1];
+				Real tmp23 = tmp_arr[2] + tmp_arr[3];
+				a[j] += tmp01 + tmp23;
 			}
 		}
 	}
