@@ -414,12 +414,17 @@ inline Real Lars::compute_lambda() {
 	for (int b_j = 0; b_j < B_cnt * B_size; b_j += B_size) {
 		for (int b_i = 0; b_i < D; b_i += B_size) {
 			for (int j = b_j; j < b_j + B_size; j++) {
-				__m256d sum = _mm256_setzero_pd();
-				for (int i = b_i; i < b_i + B_size; i+= 4) {
-					__m256d xt = _mm256_load_pd(&Xt[beta_id[j] * D + i]);
-					__m256d yy = _mm256_load_pd(&y[i]);
-					sum = _mm256_fmadd_pd( xt, yy, sum);
+				__m256d sum0 = _mm256_setzero_pd();
+				__m256d sum1 = _mm256_setzero_pd();
+				for (int i = b_i; i < b_i + B_size; i+= 8) {
+					__m256d xt0 = _mm256_load_pd(&Xt[beta_id[j] * D + i]);
+					__m256d yy0 = _mm256_load_pd(&y[i]);
+					__m256d xt1 = _mm256_load_pd(&Xt[beta_id[j] * D + i+4]);
+					__m256d yy1 = _mm256_load_pd(&y[i+4]);
+					sum0 = _mm256_fmadd_pd( xt0, yy0, sum0);
+					sum1 = _mm256_fmadd_pd( xt1, yy1, sum1);
 				}
+				__m256d sum = _mm256_add_pd(sum0, sum1);
 				_mm256_store_pd(tmp, sum);
 				Real tmp01 = tmp[0] + tmp[1];
 				Real tmp23 = tmp[2] + tmp[3];
@@ -428,12 +433,27 @@ inline Real Lars::compute_lambda() {
 		}
 	}
 	for (int j = B_cnt * B_size; j < active_itr; j++) {
-		__m256d sum = _mm256_setzero_pd();
-		for (int i = 0; i < D; i+=4) {
-			__m256d xt = _mm256_load_pd(&Xt[beta_id[j] * D + i]);
-			__m256d yy = _mm256_load_pd(&y[i]);
-			sum = _mm256_fmadd_pd( xt, yy, sum);
+		__m256d sum0 = _mm256_setzero_pd();
+		__m256d sum1 = _mm256_setzero_pd();
+		__m256d sum2 = _mm256_setzero_pd();
+		__m256d sum3 = _mm256_setzero_pd();
+		for (int i = 0; i < D; i+=16) {
+			__m256d xt0 = _mm256_load_pd(&Xt[beta_id[j] * D + i]);
+			__m256d yy0 = _mm256_load_pd(&y[i]);
+			__m256d xt1 = _mm256_load_pd(&Xt[beta_id[j] * D + i+4]);
+			__m256d yy1 = _mm256_load_pd(&y[i+4]);
+			__m256d xt2 = _mm256_load_pd(&Xt[beta_id[j] * D + i+8]);
+			__m256d yy2 = _mm256_load_pd(&y[i+8]);
+			__m256d xt3 = _mm256_load_pd(&Xt[beta_id[j] * D + i+12]);
+			__m256d yy3 = _mm256_load_pd(&y[i+12]);
+			sum0 = _mm256_fmadd_pd( xt0, yy0, sum0);
+			sum1 = _mm256_fmadd_pd( xt1, yy1, sum1);
+			sum2 = _mm256_fmadd_pd( xt2, yy2, sum2);
+			sum3 = _mm256_fmadd_pd( xt3, yy3, sum3);
 		}
+		__m256d sum01 = _mm256_add_pd(sum0, sum1);
+		__m256d sum23 = _mm256_add_pd(sum2, sum3);
+		__m256d sum = _mm256_add_pd(sum01, sum23);
 		_mm256_store_pd(tmp, sum);
 		Real tmp01 = tmp[0] + tmp[1];
 		Real tmp23 = tmp[2] + tmp[3];
@@ -452,20 +472,28 @@ inline Real Lars::compute_lambda() {
 	
 		for (int b_i = 0; b_i < b_j; b_i += B_size) {
 			for (int j = b_j; j < b_j + B_size; j++) {
-				__m256d u_j = _mm256_setzero_pd();
-				for (int i = b_i; i < b_i + B_size; i+=4) {
-					__m256d g_ji = _mm256_load_pd(&G(j, i));
-					__m256d u_i  = _mm256_load_pd(&u[i]);
-					__m256d v_i  = _mm256_load_pd(&beta_v[i]);
-					__m256d v_j  = _mm256_set1_pd(beta_v[j]);
+				__m256d u_j0 = _mm256_setzero_pd();
+				__m256d u_j1 = _mm256_setzero_pd();
+				for (int i = b_i; i < b_i + B_size; i+=8) {
+					__m256d g_ji0 = _mm256_load_pd(&G(j, i));
+					__m256d g_ji1 = _mm256_load_pd(&G(j, i + 4));
+					__m256d u_i0 = _mm256_load_pd(&u[i]);
+					__m256d u_i1 = _mm256_load_pd(&u[i + 4]);
+					__m256d v_i0 = _mm256_load_pd(&beta_v[i]);
+					__m256d v_i1 = _mm256_load_pd(&beta_v[i+4]);
+					__m256d v_j = _mm256_set1_pd(beta_v[j]);
 
-					u_j = _mm256_fnmadd_pd(g_ji, v_i, u_j);
-					u_i = _mm256_fnmadd_pd(g_ji, v_j, u_i);
-					_mm256_store_pd(&u[i], u_i);
+					u_j0 = _mm256_fnmadd_pd(g_ji0, v_i0, u_j0);
+					u_j1 = _mm256_fnmadd_pd(g_ji1, v_i1, u_j1);
+					u_i0 = _mm256_fnmadd_pd(g_ji0, v_j , u_i0);
+					u_i1 = _mm256_fnmadd_pd(g_ji1, v_j , u_i1);
+					_mm256_store_pd(&u[i], u_i0);
+					_mm256_store_pd(&u[i+4], u_i1);
 
 //					u[j] -= G(j, i) * beta_v[i];
 //					u[i] -= G(j, i) * beta_v[j];
 				}
+				__m256d u_j = _mm256_add_pd(u_j0, u_j1);
 				_mm256_store_pd(tmp, u_j);
 				Real tmp01 = tmp[0] + tmp[1];
 				Real tmp23 = tmp[2] + tmp[3];
