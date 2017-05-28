@@ -72,56 +72,42 @@ bool Lars::iterate() {
   beta[active_itr] = Idx(cur, 0);
 
 
-  // calculate Xt_A * Xcur, Matrix * vector
-  // new active row to add to gram matrix of active set
-  timer.start(UPDATE_GRAM_MATRIX);
-  for (int i = 0; i <= active_itr; ++i) {
-    L[active_itr*active_size + i] = dot(Xt + cur * D, Xt + beta[i].id * D, D);
-  }
-  timer.end(UPDATE_GRAM_MATRIX);
-
-
-  timer.start(UPDATE_CHOLESKY);
-  update_cholesky(L, active_itr, active_size);
-  timer.end(UPDATE_CHOLESKY);
-
-
+  timer.start(FUSED_CHOLESKY);
   // set w[] = sign(c[])
-  timer.start(INITIALIZE_W);
   for (int i = 0; i <= active_itr; ++i) {
     w[i] = sign(c[beta[i].id]);
   }
-  timer.end(INITIALIZE_W);
 
+  // calculate Xt_A * Xcur, Matrix * vector
+  // new active row to add to gram matrix of active set
+  for (int i = 0; i <= active_itr; ++i) {
+    L[active_itr*active_size + i] = dot(Xt + cur * D, Xt + beta[i].id * D, D);
+  }
+
+  update_cholesky(L, active_itr, active_size);
 
   // w = R\(R'\s)
   // w is now storing sum of all rows? in the inverse of G_A
-  timer.start(BACKSOLVE_CHOLESKY);
   backsolve(L, w, w, active_itr+1, active_size);
-  timer.end(BACKSOLVE_CHOLESKY);
-
 
   // AA is is used to finalize w[]
   // AA = 1 / sqrt(sum of all entries in the inverse of G_A);
-  timer.start(GET_AA);
   Real AA = 0.0;
   for (int i = 0; i <= active_itr; ++i) {
     AA += w[i] * sign(c[beta[i].id]);
   }
   AA = 1.0 / sqrt(AA);
   print("AA: %.3f\n", AA);
-  timer.end(GET_AA);
-
+  timer.end(FUSED_CHOLESKY);
 
   // get the actual w[]
-  timer.start(GET_W);
+  timer.start(GET_A);
   for (int i = 0; i <= active_itr; ++i) {
     w[i] *= AA;
   }
   print("w solved :");
   for (int i = 0; i < D; ++i) print("%.3f ", w[i]);
   print("\n");
-  timer.end(GET_W);
 
   // get a = X' X_a w
   // Now do X' (X_a w)
@@ -133,15 +119,11 @@ bool Lars::iterate() {
   memset(a, 0, K*sizeof(Real));
   memset(u, 0, D*sizeof(Real));
   // u = X_a * w
-  timer.start(GET_U);
   for (int i = 0; i <= active_itr; ++i) {
     axpy(w[i], &Xt[beta[i].id * D], u, D);
   }
-  timer.end(GET_U);
-
 
   // a = X' * u
-  timer.start(GET_A);
   mvm(Xt, false, u, a, K, D);
   timer.end(GET_A);
 
@@ -200,9 +182,9 @@ void Lars::solve() {
     print("=========== The %d Iteration ends ===========\n\n", itr);
 
     //calculateParameters();
-    timer.start(GET_LAMBDA);
+    timer.start(COMPUTE_LAMBDA);
     lambda_new = compute_lambda();
-    timer.end(GET_LAMBDA);
+    timer.end(COMPUTE_LAMBDA);
 
     print("---------- lambda_new : %.3f lambda_old: %.3f lambda: %.3f\n", lambda_new, lambda_old, lambda);
     for (int i = 0; i < active_itr; i++)
@@ -214,12 +196,10 @@ void Lars::solve() {
       memcpy(beta_old, beta, active_itr * sizeof(Idx));
     } else {
       Real factor = (lambda_old - lambda) / (lambda_old - lambda_new);
-      timer.start(INTERPOLATE_BETA);
       for (int j = 0; j < active_itr; j++) {
 //        beta[j].v = beta_old[j].v * (1.f - factor) + factor * beta[j].v;
         beta[j].v = beta_old[j].v + factor * (beta[j].v - beta_old[j].v);
       }
-      timer.end(INTERPOLATE_BETA);
       break;
     }
     itr++;
