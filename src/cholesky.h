@@ -37,7 +37,7 @@ target = _mm256_add_pd(tmp1, tmp2);\
 
 const Real EPSILON = 1e-9;
 const int VEC_SIZE = 4;
-const int B = 32; //block size, multiple of 16;
+const int B = 1024; //block size, multiple of 16;
 /*
 1.
 X'X = LL', L is a n x n matrix in N x N memory
