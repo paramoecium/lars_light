@@ -223,10 +223,19 @@ bool Lars::iterate() {
 		tmp[j] += tmp_j_1 + tmp_j_0;
 	}
 
-	for (int i = 0; i <= active_itr; ++i) {
-		for (int j = 0; j < D; j+=2) {
-			u[j] += w[i] * Xt[beta_id[i] * D + j];
-			u[j+1] += w[i] * Xt[beta_id[i] * D + j + 1];
+	// Xt_a * w
+	for (int b_j = 0; b_j < B_cnt * B_size; b_j += B_size) {
+		for (int b_i = 0; b_i < D; b_i += B_size) {
+			for (int j = b_j; j < b_j + B_size; j++) {
+				for (int i = b_i; i < b_i + B_size; i++) {
+					u[i] += w[j] * Xt[beta_id[j] * D + i];
+				}
+			}
+		}
+	}
+	for (int j = B_cnt * B_size; j <= active_itr; j++) {
+		for (int i = 0; i < D; i++) {
+			u[i] += w[j] * Xt[beta_id[j] * D + i];
 		}
 	}
 	
