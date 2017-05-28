@@ -170,37 +170,63 @@ bool Lars::iterate() {
 		// b_i == b_j;
 		for (int j = b_j; j < b_j + B_size; j++) {
 			w[j] *= AA;
-			for (int i = b_j; i < j; i++) {
-				tmp[j] += G(j, i) * w[i];
-				tmp[i] += G(j, i) * w[j];
+			Real tmp_j_0 = 0, tmp_j_1 = 0; 
+			for (int ii = (b_j>>1); ii < (j>>1); ii++) {
+				int i = ii << 1;
+				tmp_j_0 += G(j, i+0) * w[i+0];
+				tmp_j_1 += G(j, i+1) * w[i+1];
+				tmp[i+0]+= G(j, i+0) * w[j];
+				tmp[i+1]+= G(j, i+1) * w[j];
 			}
-			// i == j
-			tmp[j] += G(j, j) * w[j];
+			if (j&1) {
+				tmp[j-1]+= G(j, j-1) * w[j];
+				tmp_j_0 += G(j, j-1) * w[j-1];
+			}
+			tmp_j_1 += G(j, j) * w[j];
+			tmp[j] = tmp_j_0 + tmp_j_1;
 		}
 
 		for (int b_i = 0; b_i < b_j; b_i += B_size) {
 			for (int j = b_j; j < b_j + B_size; j++) {
-				for (int i = b_i; i < b_i + B_size; i++) {
-					tmp[j] += G(j, i) * w[i];
-					tmp[i] += G(j, i) * w[j];
+				Real tmp_j_0 = 0, tmp_j_1 = 0;
+				for (int i = b_i; i < b_i + B_size; i+=2) {
+					tmp_j_0 += G(j, i+0) * w[i+0];
+					tmp_j_1 += G(j, i+1) * w[i+1];
+					tmp[i+0]+= G(j, i+0) * w[j];
+					tmp[i+1]+= G(j, i+1) * w[j];
 				}
+				tmp[j] += tmp_j_0 + tmp_j_1;
+//				for (int i = b_i; i < b_i + B_size; i++) {
+//					tmp[j] += G(j, i) * w[i];
+//					tmp[i] += G(j, i) * w[j];
+//				}
 			}
 		}
 	}
 	// residual
 	for (int j = B_cnt * B_size; j <= active_itr; j++) {
 		w[j] *= AA;
-		for (int i = 0; i < j; i++) {
-			tmp[i] += G(j, i) * w[j];
-			tmp[j] += G(j, i) * w[i];
+		Real tmp_j_0 = 0, tmp_j_1 = 0;
+		for (int ii = 0; ii < (j>>1); ii++) {
+			int i = ii<<1;
+			tmp[i+0] += G(j, i+0) * w[j];
+			tmp[i+1] += G(j, i+1) * w[j];
+			tmp_j_0 += G(j, i+0) * w[i+0];
+			tmp_j_1 += G(j, i+1) * w[i+1];
 		}
+		if (j & 1) {
+			tmp[j-1] += G(j, j-1) * w[j];
+			tmp_j_0 +=  G(j, j-1) * w[j-1];
+		}
+		tmp_j_1 += G(j, j) * w[j];
 		// i == j
-		tmp[j] += G(j, j) * w[j];
+		tmp[j] += tmp_j_1 + tmp_j_0;
 	}
 
 	for (int i = 0; i <= active_itr; ++i) {
-		for (int j = 0; j < D; j++) {
+		for (int j = 0; j < D; j+=2) {
 			u[j] += w[i] * Xt[beta_id[i] * D + j];
+			u[j+1] += w[i] * Xt[beta_id[i] * D + j + 1];
 		}
 	}
 	
@@ -212,9 +238,20 @@ bool Lars::iterate() {
 					a[j] = tmp[(int)active[j]];
 					continue;
 				}
-				for (int i = b_i; i < b_i + B_size; i++) {
-					a[j] += Xt[j * D + i] * u[i];
+				//for (int i = b_i; i < b_i + B_size; i++) {
+				//	a[j] += Xt[j * D + i] * u[i];
+				//}
+				Real a_j_0 = 0, a_j_1 = 0;
+				Real a_j_2 = 0, a_j_3 = 0;
+				for (int i = b_i; i < b_i + B_size; i+=4) {
+					a_j_0 += Xt[j * D + i+0] * u[i+0];
+					a_j_1 += Xt[j * D + i+1] * u[i+1];
+					a_j_2 += Xt[j * D + i+2] * u[i+2];
+					a_j_3 += Xt[j * D + i+3] * u[i+3];
 				}
+				a_j_0 += a_j_2;
+				a_j_1 += a_j_3;
+				a[j] += a_j_0 + a_j_1;
 			}
 		}
 	}
