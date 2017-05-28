@@ -165,7 +165,7 @@ bool Lars::iterate() {
   // a = X' * u
 	timer.start(GET_A);
 	memset(tmp, 0, (1+active_itr)*sizeof(Real));
-	int B_size = 32, B_cnt = (1 + active_itr) / B_size;
+	int B_size = 8, B_cnt = (1 + active_itr) / B_size;
 	for (int b_j = 0; b_j < B_cnt * B_size; b_j += B_size) {
 		// b_i == b_j;
 		for (int j = b_j; j < b_j + B_size; j++) {
