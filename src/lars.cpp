@@ -387,76 +387,27 @@ void Lars::getParameters(Real* beta_out) const {
 inline Real Lars::compute_lambda() {
   // compute (y - X*beta)
   timer.start(COMPUTE_LAMBDA);
-  memcpy(tmp, y, D * sizeof(Real));
-  memcpy(u, y, D * sizeof(Real));
-//  for (int i = 0; i < active_itr; i++) {
-//    for (int j = 0; j < D; j++)
-//      tmp[j] -= Xt[beta_id[tmp_int[i]] * D + j] 
-//                * beta_v[tmp_int[i]];
-//  }
-//  // compute X'*(y - X_A*beta)
-//  Real max_lambda = Real(0.0);
-//  for (int i = 0; i < K; ++i) {
-//    Real lambda = 0;
-//    for (int j = 0; j < D; j++) 
-//      lambda += Xt[i * D + j] * tmp[j];
-//    max_lambda = fmax(max_lambda, fabs(lambda));
-//  }
-
-  Real max_lambda = 1e-5;
-//	int B_size = 32, B_cnt = active_itr / B_size;
-//	for (int b_i = 0; b_i < B_cnt; b_i += B_size) {
-//		for (int b_j = 0; b_j < b_i; b_j += B_size) {
-//			for (int j = b_j; j < b_j + B_size; j++) {
-//				for (int i = b_i; i < b_i + B_size; i++) {
-//					tmp[j] -= G(j, i) * beta_v[i];
-//					tmp[i] -= G(j, i) * beta_v[j];
-//				}
-//			}
-//		}
-//
-//		// b_j == b_i
-//		for (int j = b_i; j < b_i + B_size; j++) {
-//			tmp[j] -= G(j, j) * beta_v[j];
-//			for (int i = b_i; i < b_i + B_size; i++) {
-//				tmp[j] -= G(j, i) * beta_v[i];
-//				tmp[i] -= G(j, i) * beta_v[j];
-//			}
-//		}
-//	}
-//	for (int j = B_cnt * B_size; j < active_itr; j++) {
-//		for (int i = 0; i < j; i++) {
-//			tmp[i] -= G(j, i) * beta_v[j];
-//			tmp[j] -= G(j, i) * beta_v[i];
-//			max_lambda = fmax(max_lambda, tmp[i]);
-//		}
-//		tmp[j] -= G(j, j) * beta_v[j];
-//		max_lambda = fmax(max_lambda, tmp[j]);
-//	}
-
-//  memcpy(tmp, y, D * sizeof(Real));
-//  memcpy(u, y, D * sizeof(Real));
-//	Real max_lambda1 = 0;
-//	for (int i = 0; i < active_itr; i++) {
-//		for (int j = 0; j < active_itr; j++) {
-//			int ii = fmax(i, j), jj = fmin(i, j);
-//			tmp[i] -= G(ii, jj) * beta_v[j];
-//		}
-//	}
-//  max_lambda1 = fmax(max_lambda1, tmp[active_itr-1]);
-//	printf("%.3f %.3f\n", max_lambda1, max_lambda);
-//  for (int i = 0; i < active_itr; i++) {
-//    for (int j = 0; j < i; j++) {
-//      tmp[j] -= G(i, j) * beta_v[i];
-//      if (i == active_itr - 1) max_lambda1 = fmax(max_lambda1, tmp[j]);
-//      tmp[i] -= G(i, j) * beta_v[j];
-//    }
-//    tmp[i] -= G(i, i) * beta_v[i];
-//  }
+	memset(u, 0, D * sizeof(Real));
+	Real max_lambda1 = 0;
+	for (int i = 0; i < active_itr; i++) {
+		for (int j = 0; j < D; j++) {
+			u[i] += Xt[beta_id[i] * D + j] * y[j];
+		}
+	}
+	for (int i = 0; i < active_itr; i++) {
+		for (int j = 0; j < i; j++) {
+			u[i] -= G(i, j) * beta_v[j];
+			u[j] -= G(i, j) * beta_v[i];
+		}
+		// j == i
+		u[i] -= G(i, i) * beta_v[i];
+	}
+	for (int i = 0; i < active_itr; i++) 
+		max_lambda1 = fmax(max_lambda1, fabs(u[i]));
 
 
   timer.end(COMPUTE_LAMBDA);
-  return max_lambda;
+  return max_lambda1;
 }
 
 
