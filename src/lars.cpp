@@ -165,14 +165,38 @@ bool Lars::iterate() {
   // a = X' * u
 	timer.start(GET_A);
 	memset(tmp, 0, (1+active_itr)*sizeof(Real));
-	for (int i = 0; i <= active_itr; i++) {
-		w[i] *= AA;
-		for (int j = 0; j < i; j++) {
-			tmp[j] += G(i, j) * w[i];
-			tmp[i] += G(i, j) * w[j];
+	int B_size = 32, B_cnt = (1 + active_itr) / B_size;
+	for (int b_j = 0; b_j < B_cnt * B_size; b_j += B_size) {
+		// b_i == b_j;
+		for (int j = b_j; j < b_j + B_size; j++) {
+			w[j] *= AA;
+			for (int i = b_j; i < j; i++) {
+				tmp[j] += G(j, i) * w[i];
+				tmp[i] += G(j, i) * w[j];
+			}
+			// i == j
+			tmp[j] += G(j, j) * w[j];
 		}
-		tmp[i] += G(i, i) * w[i];
-	} 
+
+		for (int b_i = 0; b_i < b_j; b_i += B_size) {
+			for (int j = b_j; j < b_j + B_size; j++) {
+				for (int i = b_i; i < b_i + B_size; i++) {
+					tmp[j] += G(j, i) * w[i];
+					tmp[i] += G(j, i) * w[j];
+				}
+			}
+		}
+	}
+	// residual
+	for (int j = B_cnt * B_size; j <= active_itr; j++) {
+		w[j] *= AA;
+		for (int i = 0; i < j; i++) {
+			tmp[i] += G(j, i) * w[j];
+			tmp[j] += G(j, i) * w[i];
+		}
+		// i == j
+		tmp[j] += G(j, j) * w[j];
+	}
 
 	for (int i = 0; i <= active_itr; ++i) {
 		for (int j = 0; j < D; j++) {
@@ -180,14 +204,28 @@ bool Lars::iterate() {
 		}
 	}
 	
-	for (int i = 0; i < K; i++) {
-		if (active[i] >= 0) a[i] = tmp[(int)active[i]];
-		else {
-			for (int j = 0; j < D; j++) {
-				a[i] += Xt[i * D + j] * u[j];
+//	B_size = 8;
+	for (int b_j = 0; b_j < K; b_j += B_size) {
+		for (int b_i = 0; b_i < D; b_i += B_size) {
+			for (int j = b_j; j < b_j + B_size; j++) {
+				if (active[j] >= 0) {
+					a[j] = tmp[(int)active[j]];
+					continue;
+				}
+				for (int i = b_i; i < b_i + B_size; i++) {
+					a[j] += Xt[j * D + i] * u[i];
+				}
 			}
 		}
 	}
+//	for (int i = 0; i < K; i++) {
+//		if (active[i] >= 0) a[i] = tmp[(int)active[i]];
+//		else {
+//			for (int j = 0; j < D; j++) {
+//				a[i] += Xt[i * D + j] * u[j];
+//			}
+//		}
+//	}
 
 	timer.end(GET_A);
 
