@@ -358,15 +358,26 @@ inline Real Lars::compute_lambda() {
 //		tmp[j] -= G(j, j) * beta_v[j];
 //		max_lambda = fmax(max_lambda, tmp[j]);
 //	}
-  for (int i = 0; i < active_itr; i++) {
-    for (int j = 0; j < i; j++) {
-      tmp[j] -= G(i, j) * beta_v[i];
-      if (i == active_itr - 1) max_lambda = fmax(max_lambda, tmp[j]);
-      tmp[i] -= G(i, j) * beta_v[j];
-    }
-    tmp[i] -= G(i, i) * beta_v[i];
-  }
-  max_lambda = fmax(max_lambda, tmp[active_itr-1]);
+
+//  memcpy(tmp, y, D * sizeof(Real));
+//  memcpy(u, y, D * sizeof(Real));
+//	Real max_lambda1 = 0;
+//	for (int i = 0; i < active_itr; i++) {
+//		for (int j = 0; j < active_itr; j++) {
+//			int ii = fmax(i, j), jj = fmin(i, j);
+//			tmp[i] -= G(ii, jj) * beta_v[j];
+//		}
+//	}
+//  max_lambda1 = fmax(max_lambda1, tmp[active_itr-1]);
+//	printf("%.3f %.3f\n", max_lambda1, max_lambda);
+//  for (int i = 0; i < active_itr; i++) {
+//    for (int j = 0; j < i; j++) {
+//      tmp[j] -= G(i, j) * beta_v[i];
+//      if (i == active_itr - 1) max_lambda1 = fmax(max_lambda1, tmp[j]);
+//      tmp[i] -= G(i, j) * beta_v[j];
+//    }
+//    tmp[i] -= G(i, i) * beta_v[i];
+//  }
 
 
   timer.end(COMPUTE_LAMBDA);
