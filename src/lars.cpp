@@ -417,6 +417,11 @@ inline Real Lars::compute_lambda() {
 			}
 		}
 	}
+	for (int j = B_cnt * B_size; j < active_itr; j++) {
+		for (int i = 0; i < D; i++) {
+			u[j] += Xt[beta_id[j] * D + i] * y[i];
+		}
+	}
 
 	for (int b_j = 0; b_j < B_cnt * B_size; b_j += B_size) {
 		// b_i == b_j
