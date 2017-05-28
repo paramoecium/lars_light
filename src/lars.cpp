@@ -356,6 +356,7 @@ bool Lars::iterate() {
   timer.end(GET_GAMMA);
 
 
+	timer.start(UPDATE_BETA);
   int V_size = (active_itr + 1) / 16, V_res = (active_itr+1)%16;
   __m256d g_gw = _mm256_set1_pd(gamma);
   for (int ii = 0; ii < V_size; ++ii) {
@@ -381,6 +382,7 @@ bool Lars::iterate() {
     int i = 16 * V_size + ii;
     beta_v[i] += gamma * w[i];
   }
+	timer.end(UPDATE_BETA);
 
   active_itr++;
 
