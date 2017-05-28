@@ -329,6 +329,35 @@ inline Real Lars::compute_lambda() {
 //  }
 
   Real max_lambda = 1e-5;
+//	int B_size = 32, B_cnt = active_itr / B_size;
+//	for (int b_i = 0; b_i < B_cnt; b_i += B_size) {
+//		for (int b_j = 0; b_j < b_i; b_j += B_size) {
+//			for (int j = b_j; j < b_j + B_size; j++) {
+//				for (int i = b_i; i < b_i + B_size; i++) {
+//					tmp[j] -= G(j, i) * beta_v[i];
+//					tmp[i] -= G(j, i) * beta_v[j];
+//				}
+//			}
+//		}
+//
+//		// b_j == b_i
+//		for (int j = b_i; j < b_i + B_size; j++) {
+//			tmp[j] -= G(j, j) * beta_v[j];
+//			for (int i = b_i; i < b_i + B_size; i++) {
+//				tmp[j] -= G(j, i) * beta_v[i];
+//				tmp[i] -= G(j, i) * beta_v[j];
+//			}
+//		}
+//	}
+//	for (int j = B_cnt * B_size; j < active_itr; j++) {
+//		for (int i = 0; i < j; i++) {
+//			tmp[i] -= G(j, i) * beta_v[j];
+//			tmp[j] -= G(j, i) * beta_v[i];
+//			max_lambda = fmax(max_lambda, tmp[i]);
+//		}
+//		tmp[j] -= G(j, j) * beta_v[j];
+//		max_lambda = fmax(max_lambda, tmp[j]);
+//	}
   for (int i = 0; i < active_itr; i++) {
     for (int j = 0; j < i; j++) {
       tmp[j] -= G(i, j) * beta_v[i];
@@ -338,16 +367,8 @@ inline Real Lars::compute_lambda() {
     tmp[i] -= G(i, i) * beta_v[i];
   }
   max_lambda = fmax(max_lambda, tmp[active_itr-1]);
-  
 
-//  for (int i = 0; i < K; i++) {
-//    Real lambda = 0;
-//    if (active[i] >= 0) continue;
-//    for (int j = 0; j < D; j++) {
-//       lambda += Xt[i * D + j] * u[j];
-//    }
-//    max_lambda = fmax(max_lambda, fabs(lambda));
-//  }
+
   timer.end(COMPUTE_LAMBDA);
   return max_lambda;
 }
