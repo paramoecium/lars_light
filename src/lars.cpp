@@ -166,19 +166,39 @@ bool Lars::iterate() {
 	timer.start(GET_A);
 	memset(tmp, 0, (1+active_itr)*sizeof(Real));
   // u = X_a * w
-  for (int i = 0; i <= active_itr; ++i) {
-		w[tmp_int[i]] *= AA;
-    for (int j = 0; j < D; j++) {
-      u[j] += w[tmp_int[i]] * Xt[beta_id[tmp_int[i]] * D + j];
-    }
-  }
+
+	int B_size = 8, B_cnt = (1 + active_itr) / B_size;
+	for (int i = 0; i <= active_itr; i++) w[i] *= AA;
+	for (int b_j = 0; b_j < B_cnt * B_size; b_j += B_size) {
+		for (int b_i = 0; b_i < D; b_i += B_size) {
+			for (int j = b_j; j < b_j + B_size; j++) {
+				for (int i = b_i; i < b_i + B_size; i++) {
+					u[i] += w[tmp_int[j]] * Xt[beta_id[tmp_int[j]] * D + i];
+				}
+			}
+		}
+	}
+	for (int j = B_cnt * B_size; j <= active_itr; j++) {
+		for (int i = 0; i < D; i++) {
+			u[i] += w[tmp_int[j]] * Xt[beta_id[tmp_int[j]] * D + i];
+		}
+	}
 
   // a = X' * u
-  for (int i = 0; i < K; i++) {
-    for (int j = 0; j < D; j++) {
-      a[i] += Xt[i * D + j] * u[j];
-    }
-  }
+	for (int b_j = 0; b_j < K; b_j += B_size) {
+		for (int b_i = 0; b_i < D; b_i += B_size) {
+			for (int j = b_j; j < b_j + B_size; j++) {
+				for (int i = b_i; i < b_i + B_size; i++) {
+					a[j] += u[i] * Xt[j * D + i];
+				}
+			}
+		}
+	}
+//  for (int i = 0; i < K; i++) {
+//    for (int j = 0; j < D; j++) {
+//      a[i] += Xt[i * D + j] * u[j];
+//    }
+//  }
 //	int B_size = 8, B_cnt = (1 + active_itr) / B_size;
 //	for (int b_j = 0; b_j < B_cnt * B_size; b_j += B_size) {
 //		// b_i == b_j;
