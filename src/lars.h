@@ -20,7 +20,9 @@ struct Lars {
 
   const Real *Xt; //a KxD matrix, transpose of X;
   const Real *y; //a Dx1 vector
-  Idx *beta, *beta_old; // current beta and old beta solution [Not sorted]
+
+  int *beta_id, *beta_old_id;
+  Real *beta_v, *beta_old_v;
 
   int *active; // active[i] = position beta of active param or -1
   Real *c; //
@@ -29,7 +31,8 @@ struct Lars {
   Real *u; // unit direction of each iteration
   Real *a; // store Xt * u
   Real *L; // lower triangular matrix of the gram matrix of X_A (pxp)
-
+  Real *G;
+  
   Real lambda, lambda_new, lambda_old;
 
   Real *tmp; // temporary storage for active correlations
@@ -51,9 +54,9 @@ struct Lars {
 
 //  void calculateParameters();
 
-  void getParameters(Idx** beta_out) const; // get final beta
+  void getParameters(Real* beta_out) const; // get final beta
 
-  void getParameters(Real* beta_out) const;
+  void getParameters(int** beta_out_id, Real** beta_out_v) const;
 
   Real compute_lambda(); // compute lambda given beta
 };
