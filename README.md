@@ -13,3 +13,12 @@ make
 ./test_lars
 ```
 
+```python
+INIT_CORRELATION()
+while (COMPUTE_LAMBDA() > LAMBDA)
+  GET_ACTIVE_IDX()
+  FUSED_CHOLESKY()
+  GET_A()
+  GET_GAMMA()
+  UPDATE_BETA()
+```
