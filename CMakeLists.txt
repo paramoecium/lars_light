@@ -14,7 +14,6 @@ add_executable(test_lars ${test_source_files})
 target_link_libraries(test_lars lars)
 target_link_libraries(test_lars mathOperations)
 
-
 add_executable(measure measure.cpp)
 target_link_libraries(measure lars)
 target_link_libraries(measure mathOperations)

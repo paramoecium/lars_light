@@ -36,7 +36,7 @@ target = _mm256_add_pd(tmp1, tmp2);\
 
 const Real EPSILON = 1e-9;
 const int VEC_SIZE = 4;
-const int B = 32; //block size, multiple of 16;
+const int B = 1024; //block size, multiple of 16;
 /*
 1.
 X'X = LL', L is a n x n matrix in N x N memory
@@ -47,7 +47,6 @@ in the active set(including itself)
 2.
 Compute ((X'X)^-1)w by solving (X'X)w = (LL')w = w
 */
-
 inline Real update_cholesky_n_solve(Real *L, Real *w, const Real *v, const int n, const int N,
                   const Real *Xt, const int cur, const Idx *beta, const int D) {
   __m256d sum_v1, sum_v2, sum_v3, sum_v4, sum_v5, sum_v6, sum_v7, sum_v8;
@@ -244,7 +243,7 @@ inline Real update_cholesky_n_solve(Real *L, Real *w, const Real *v, const int n
       }
     }
     /* compute mvms (BxB)(Bx1) */
-    for (b_k = b_i - B; b_k >= -1; b_k -= B) {
+    for (b_k = b_i - B; b_k - B >= -1; b_k -= B) {
       for (i = b_i; i > b_i - B; i--) {
         __m256d w_i = _mm256_set1_pd(w[i]);
         for (k = b_k - B + 1; k <= b_k - 4 * VEC_SIZE + 1; k += 4 * VEC_SIZE) {
