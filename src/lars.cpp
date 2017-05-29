@@ -5,6 +5,7 @@
 
 #ifndef LARS_CPP
 #define LARS_CPP
+#define B_size 512
 #define G(i, j) G[((i * (i + 1))>>1) - 1 + j]
 
 Lars::Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in, Timer &timer_in):
@@ -167,7 +168,7 @@ bool Lars::iterate() {
 	memset(tmp, 0, (1+active_itr)*sizeof(Real));
   // u = X_a * w
 
-	int B_size = 16, B_cnt = (1 + active_itr) / B_size;
+	int B_cnt = (1 + active_itr) / B_size;
 	for (int i = 0; i <= active_itr; i++) w[i] *= AA;
 	for (int b_j = 0; b_j < B_cnt * B_size; b_j += B_size) {
 		for (int b_i = 0; b_i < D; b_i += B_size) {
@@ -541,7 +542,7 @@ inline Real Lars::compute_lambda() {
 
 	Real max_lambda = 0;
 	memset(u, 0, D * sizeof(Real));
-	int B_size = 16, B_cnt = active_itr / B_size;
+	int B_cnt = active_itr / B_size;
 	for (int b_j = 0; b_j < B_cnt * B_size; b_j += B_size) {
 		for (int b_i = 0; b_i < D; b_i += B_size) {
 			for (int j = b_j; j < b_j + B_size; j++) {
