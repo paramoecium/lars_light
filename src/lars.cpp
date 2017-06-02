@@ -100,6 +100,13 @@ bool Lars::iterate() {
   AA = 1.0 / sqrt(AA);
   print("AA: %.3f\n", AA);
   timer.end(FUSED_CHOLESKY);
+  for (int i = 0; i <= active_itr; ++i) {
+//    G[active_itr * active_size + i] = 0;
+//    for (int j = 0; j < D; j++) {
+//      G[active_itr * active_size + i] += Xt[cur * D + j] * Xt[beta_id[i] * D + j];
+//    }
+//		printf("%.3f %.3f\n", G[active_itr * active_size + i], L(active_itr, i));
+  }
 
   // get the actual w[]
   timer.start(GET_A);
