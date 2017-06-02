@@ -1,4 +1,5 @@
-set(CMAKE_VERBOSE_MAKEFILE ON)
+cmake_minimum_required(VERSION 2.8)
+set(CMAKE_VERBOSE_MAKEFILE OFF)
 project(lars_light)
 
 # ================================================================================
@@ -27,7 +28,8 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
 
     # Intel ICC - C++ flags
-    set(CMAKE_CXX_FLAGS "-O3 -std=c++11")
+    set(CMAKE_CXX_FLAGS "-O3 -ansi-alias -no-vec -unroll=0 ")
+    #set(CMAKE_CXX_FLAGS "-O3 -xHost -ansi-alias -march=core-avx2 -vec_report1")
 
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 
@@ -53,7 +55,8 @@ elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
 elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "Intel")
 
     # Intel ICC - CC flags
-    set(CMAKE_C_FLAGS "-O3 -xHost")
+    set(CMAKE_C_FLAGS "-O3 -ansi-alias -no-vec -unroll=0 ")
+    #set(CMAKE_C_FLAGS "-O3 -xHost -ansi-alias -march=core-avx2 -vec_report1")
 
 elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
 
