@@ -9,7 +9,6 @@
 #include "util.h"
 
 const Real EPSILON = 1e-9;
-
 /////////////
 // Methods //
 /////////////

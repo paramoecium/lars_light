@@ -11,7 +11,7 @@
 #include "rdtsc.h"
 #include "timer.h"
 
-#define RUNS 5
+#define RUNS 2
 #define CYCLES_REQUIRED 1e7
 #define VERIFY
 
@@ -64,7 +64,7 @@ Real *beta) {
 }
 
 int main() {
-  const int Max_D = 1 << 13, Max_K = 2 * Max_D;
+  const int Max_D = 1 << 12, Max_K = 2 * Max_D;
   //const int Max_D = 600, Max_K = 600;
   Real lambda = 0.0;
   Timer timer(END_ITR);
@@ -74,7 +74,11 @@ int main() {
   Real *beta = (Real*) malloc(sizeof(Real) * Max_K);
   Real *beta_h = (Real*) malloc(sizeof(Real) * Max_K);
 
+<<<<<<< Updated upstream
   for (int i = 1 << 7; i <= Max_D; i += (1<<9)) {
+=======
+  for (int i = 1 << 11; i <= Max_D; i += (1<<9)) {
+>>>>>>> Stashed changes
     printf("\nD = %d, K = %d\n", i , 2 * i);
     timer.reset();
     set_value(i, 2 * i, Xt, y, beta);
