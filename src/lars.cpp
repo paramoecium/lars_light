@@ -165,10 +165,10 @@ bool Lars::iterate() {
   timer.end(UPDATE_BETA, active_itr + 1);
 
   // update correlation with a
-  timer.start(GET_ACTIVE_IDX, active_itr + 1);
+  timer.start(GET_ACTIVE_IDX2, active_itr + 1);
   for (int i = 0; i < K; ++i)
     c[i] -= gamma * a[i];
-  timer.end(GET_ACTIVE_IDX, active_itr + 1);
+  timer.end(GET_ACTIVE_IDX2, active_itr + 1);
 
   print("beta: ");
   for (int i = 0; i <= active_itr; ++i) print("%d %.3f ", beta[i].id, beta[i].v);
@@ -185,9 +185,9 @@ void Lars::solve() {
     print("=========== The %d Iteration ends ===========\n\n", itr);
 
     //calculateParameters();
-    timer.start(COMPUTE_LAMBDA, active_itr + 1);
+    timer.start(COMPUTE_LAMBDA, active_itr);
     lambda_new = compute_lambda();
-    timer.end(COMPUTE_LAMBDA, active_itr + 1);
+    timer.end(COMPUTE_LAMBDA, active_itr);
 
     print("---------- lambda_new : %.3f lambda_old: %.3f lambda: %.3f\n", lambda_new, lambda_old, lambda);
     for (int i = 0; i < active_itr; i++)

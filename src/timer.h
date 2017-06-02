@@ -34,26 +34,25 @@ inline Timer::Timer(int n_timer_in, int max_iter_in, int step_size_in) : n_timer
 }
 
 inline void Timer::reset() {
-  memset(clocks, 0, n_timer * sizeof(double));
+  memset(clocks, 0, n_record * n_timer * sizeof(double));
   memset(call_cnt, 0, n_record * n_timer * sizeof(int));
 }
 
 inline void Timer::start(TIMER_ID id, int iter) {
-  if (!iter % step_size) return;
+  if ((iter % step_size) > 0) return;
   assert(id < n_timer);
-  call_cnt[(iter / step_size) * n_timer + id] += 1;
+  call_cnt[(iter / step_size - 1) * n_timer + id] += 1;
   CPUID();
   RDTSC(laps[id]);
 }
 
 inline void Timer::end(TIMER_ID id, int iter) {
-  if (!iter % step_size) return;
+  if ((iter % step_size) > 0) return;
   assert(id < n_timer);
   tsc_counter end;
   CPUID();
   RDTSC(end);
-
-  clocks[(iter / step_size) * n_timer + id] += (double) (COUNTER_DIFF(end, laps[id]));
+  clocks[(iter / step_size - 1) * n_timer + id] += (double) (COUNTER_DIFF(end, laps[id]));
 }
 
 inline void Timer::print() {
@@ -62,7 +61,7 @@ inline void Timer::print() {
     for (int i = 0; i < (int)END_ITR; i++) {
       printf("%s, %.3f\n",
         TIMER_ID_STR[i],
-        call_cnt == 0? 0 : clocks[t * n_timer + i] / call_cnt[i]);
+        call_cnt == 0? 0 : clocks[t * n_timer + i] / call_cnt[t * n_timer + i]);
     }
     printf("\n");
   }

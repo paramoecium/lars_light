@@ -8,6 +8,7 @@ enum TIMER_ID{
   GET_A,
   GET_GAMMA,
   UPDATE_BETA,
+  GET_ACTIVE_IDX2,
   COMPUTE_LAMBDA,
 
   END_ITR
@@ -20,6 +21,7 @@ static const char *TIMER_ID_STR[] = {
   "GET_A",
   "GET_GAMMA",
   "UPDATE_BETA",
+  "GET_ACTIVE_IDX2",
   "COMPUTE_LAMBDA",
 
 
