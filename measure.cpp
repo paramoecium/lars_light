@@ -35,7 +35,7 @@ int measure(const int D, const int K, Real *Xt, Real *y, Real *beta, Real *beta_
       lars.solve();
   }
   CPUID(); RDTSC(end);
-  timer.print(num_runs);
+  timer.print();
 
   cycles = (double) (COUNTER_DIFF(end, start)) / num_runs;
 
@@ -64,10 +64,10 @@ Real *beta) {
 }
 
 int main() {
-  const int Max_D = 1 << 12, Max_K = 2 * Max_D;
+  const int Max_D = 1 << 7, Max_K = 2 * Max_D;
   //const int Max_D = 600, Max_K = 600;
   Real lambda = 0.0;
-  Timer timer(END_ITR);
+  Timer timer(END_ITR, Max_D, 32);
 
   Real *Xt = (Real*) malloc(sizeof(Real) * Max_D * Max_K);
   Real *y = (Real*) malloc(sizeof(Real) * Max_D);

@@ -7,14 +7,13 @@
 int main() {
 
   // Initailize data
-  int D, K;
+  int D = 2, K = 4;
   Real *Xt;
   Real *y, *y_2;
   Idx *beta;
   Real lambda = 0.0;
-  Timer timer(END_ITR);
+  Timer timer(END_ITR, D, 1);
 
-  D = 2, K = 4;
   Xt = (Real*) malloc(D * K * sizeof(Real));
   y = (Real*) malloc(D * sizeof(Real));
   y_2 = (Real*) malloc(D * sizeof(Real));
