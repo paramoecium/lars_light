@@ -73,7 +73,7 @@ int main() {
   Real *beta_h = (Real*) malloc(sizeof(Real) * K);
 
   printf("\nD = %d, K = %d\n", D , K);
-  Timer timer(END_ITR, D, 32);
+  Timer timer(END_ITR, D, D/8);
   timer.reset();
   set_value(D, K, Xt, y, beta);
   int num_runs = measure(D, K, Xt, y, beta, beta_h, lambda, timer);
