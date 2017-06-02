@@ -10,7 +10,8 @@ add_library(lars src/lars.cpp)
 set(CMAKE_C_COMPILER "/opt/intel/composer_xe_2013_sp1.1.106/bin/intel64/icc")
 set(CMAKE_CXX_COMPILER "/opt/intel/composer_xe_2013_sp1.1.106/bin/intel64/icpc")
 
-set(CMAKE_CXX_FLAGS "-std=c++11 -O3 -g -march=core-avx2")
+set(CMAKE_CXX_FLAGS "-std=c++11 -O3 -march=core-avx2")
+set(CMAKE_C_FLAGS "-std=c++11 -O3 -march=core-avx2")
 
 set(test_source_files test.cpp)
 add_executable(test_lars ${test_source_files})
