@@ -10,26 +10,25 @@
 Lars::Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in, Timer &timer_in):
     Xt(Xt_in), D(D_in), K(K_in), lambda(lambda_in), timer(timer_in) {
 
-  beta_id = (int*) calloc(K, sizeof(int));
-  beta_old_id = (int*) calloc(K, sizeof(int));
-  beta_v  = (Real*) calloc(K, sizeof(Real));
-  beta_old_v  = (Real*) calloc(K, sizeof(Real));
+  beta_id = (int*) _mm_calloc(K * sizeof(int));
+  beta_old_id = (int*) _mm_calloc(K * sizeof(int));
+  beta_v  = (Real*) _mm_calloc(K * sizeof(Real));
+  beta_old_v  = (Real*) _mm_calloc(K * sizeof(Real));
 
   // Initializing
   active_size = fmin(K, D);
-  active = (Real*) malloc(K * sizeof(Real));
+  active = (Real*) _mm_malloc(K * sizeof(Real), 32);
 
-  c = (Real*) calloc(K, sizeof(Real));
-	sgn = (Real*) calloc(active_size, sizeof(Real));
-  w = (Real*) calloc(active_size, sizeof(Real));
-//  L = (Real*) calloc(((active_size * (active_size + 1))>>1) - 1 + active_size, sizeof(Real));
-//  G = (Real*) calloc(((active_size * (active_size + 1))>>1) - 1 + active_size, sizeof(Real));
-  L = (Real*) calloc(active_size * active_size / 2 + active_size * 2, sizeof(Real));
-  G = (Real*) calloc(active_size * active_size / 2 + active_size * 2, sizeof(Real));
-  u = (Real*) calloc(D, sizeof(Real));
-  a = (Real*) calloc(K, sizeof(Real));
-	tmp_int = (int *) calloc(active_size, sizeof(int));
-  tmp = (Real*) calloc((K>D?K:D), sizeof(Real));
+  c = (Real*) _mm_calloc(K * sizeof(Real));
+	sgn = (Real*) _mm_calloc(active_size * sizeof(Real));
+  w = (Real*) _mm_calloc(active_size * sizeof(Real));
+  L = (Real*) _mm_calloc((active_size * active_size / 2 + active_size * 2) * sizeof(Real));
+  G = (Real*) _mm_calloc((active_size * active_size / 2 + active_size * 2) * sizeof(Real));
+
+  u = (Real*) _mm_calloc(D * sizeof(Real));
+  a = (Real*) _mm_calloc(K * sizeof(Real));
+	tmp_int = (int *) _mm_calloc(active_size * sizeof(int));
+  tmp = (Real*) _mm_calloc((K>D?K:D) * sizeof(Real));
 
 	gamma = 0.0;
 }
@@ -46,7 +45,7 @@ void Lars::set_y(const Real *y_in) {
   memset(w, 0, active_size * sizeof(Real));
   memset(u, 0, D * sizeof(Real));
   memset(a, 0, K * sizeof(Real));
-  memset(L, 0, active_size * active_size * sizeof(Real));
+  memset(L, 0, (active_size * active_size / 2 + active_size * 2) * sizeof(Real));
 
 	for (int i = 0; i < active_size; i++) tmp_int[i] = i;
 

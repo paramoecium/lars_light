@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstdio>
 #include <immintrin.h>
+#include <cstring>
 
 #ifndef UTIL_H
 #define UTIL_H
@@ -20,6 +21,12 @@ inline Real sign(Real tmp) {
   if (tmp > 0) return 1.0;
   if (tmp < 0) return -1.0;
   return 0;
+}
+
+inline void* _mm_calloc(const int size) {
+  void* ret = _mm_malloc(size, 32);
+  memset(ret, 0, size);
+  return ret;
 }
 
 //#define DEBUG
@@ -103,7 +110,7 @@ inline void prepare_Beta(const int K, const int r, T *beta) {
 }
 
 inline Real get_square_error(const Real *Xt, const Real *beta, const Real *y, const int D, const int K) {
-    Real *y_h = (Real*) calloc(D, sizeof(Real));
+    Real *y_h = (Real*) _mm_calloc(D * sizeof(Real));
     Real sqr_error = 0.0;
     for (int i = 0; i < K; i++) {
       for (int j = 0; j < D; j++) {
@@ -112,7 +119,7 @@ inline Real get_square_error(const Real *Xt, const Real *beta, const Real *y, co
     }
     for (int i = 0; i < D; i++)
         sqr_error += (y_h[i] - y[i]) * (y_h[i] - y[i]);
-    free(y_h);
+    _mm_free(y_h);
     return sqr_error;
 }
 #endif

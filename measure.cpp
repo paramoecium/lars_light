@@ -69,16 +69,21 @@ int main() {
   Real lambda = 0.0;
   Timer timer(END_ITR);
 
-  Real *Xt = (Real*) malloc(sizeof(Real) * Max_D * Max_K);
-  Real *y = (Real*) malloc(sizeof(Real) * Max_D);
-  Real *beta = (Real*) malloc(sizeof(Real) * Max_K);
-  Real *beta_h = (Real*) malloc(sizeof(Real) * Max_K);
-
   for (int i = 1 << 9; i <= Max_D; i += (1<<9)) {
-    printf("\nD = %d, K = %d\n", i , 2 * i);
-    timer.reset();
-    set_value(i, 2 * i, Xt, y, beta);
-    int num_runs = measure(i, 2 * i, Xt, y, beta, beta_h, lambda, timer);
 
+    int D = i, K = 2 * i;
+    Real *Xt = (Real*) _mm_malloc(D * K * sizeof(Real), 32);
+    Real *y = (Real*) _mm_malloc(D * sizeof(Real), 32);
+    Real *beta = (Real*) _mm_malloc(K * sizeof(Real), 32);
+    Real *beta_h = (Real*) _mm_malloc(K * sizeof(Real), 32);
+
+    printf("\nD = %d, K = %d\n", D , K);
+    timer.reset();
+    set_value(D, K, Xt, y, beta);
+    int num_runs = measure(D, K, Xt, y, beta, beta_h, lambda, timer);
+    _mm_free(Xt);
+    _mm_free(y);
+    _mm_free(beta);
+    _mm_free(beta_h);
   }
 }
