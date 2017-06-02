@@ -8,7 +8,7 @@ Usage
 ```bash
 mkdir build
 cd build 
-cmake ..
+cmake .. -DCMAKE_CXX_COMPILER=icpc -DCMAKE_CC_COMPILER=icc
 make
 ./test_lars
 ```
