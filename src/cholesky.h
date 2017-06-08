@@ -273,7 +273,7 @@ inline Real update_cholesky_n_solve(Real *L, Real *G, Real *w, const Real *v, co
     /* pivot the triangle, unroll2 */
     for (i = b_i; i > b_i - B; i--) {
       w[i] /= L(i, i);
-      AA += w[i] * v[i];
+      AA += fabs(w[i]);
       for (k = b_i - B + 1; k <= i - 2 ; k += 2) {
         w[k] -= L(i, k) * w[i];
         w[k + 1] -= L(i, k + 1) * w[i];
@@ -323,7 +323,7 @@ inline Real update_cholesky_n_solve(Real *L, Real *G, Real *w, const Real *v, co
   /* finish the remaining triangle */
   for (; i>= 0; i--) {
     w[i] /= L(i, i);
-    AA += w[i] * v[i];
+    AA += fabs(w[i]);
     for (k = 0; k <= i - 2; k += 2) {
       w[k] -= L(i, k) * w[i];
       w[k + 1] -= L(i, k + 1) * w[i];
