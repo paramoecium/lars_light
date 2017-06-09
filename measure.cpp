@@ -69,7 +69,7 @@ int main() {
   Real lambda = 0.0;
   Timer timer(END_ITR);
 
-  for (int i = 1 << 9; i <= Max_D; i += (1<<9)) {
+  for (int i = 1 << 7; i <= Max_D; i <<= 1) {
 
     int D = i, K = 2 * i;
     Real *Xt = (Real*) _mm_malloc(D * K * sizeof(Real), 32);

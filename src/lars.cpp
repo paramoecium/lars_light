@@ -108,10 +108,6 @@ bool Lars::iterate() {
     __m256d a_v = _mm256_load_pd(&a[i]);
     cc = _mm256_fmadd_pd(gamma_v, a_v, cc);
     _mm256_store_pd(&c[i], cc);
-    if (active[i+0]>=0) sgn[(int)active[i+0]] = sign(c[i+0]);
-    if (active[i+1]>=0) sgn[(int)active[i+1]] = sign(c[i+1]);
-    if (active[i+2]>=0) sgn[(int)active[i+2]] = sign(c[i+2]);
-    if (active[i+3]>=0) sgn[(int)active[i+3]] = sign(c[i+3]);
 
     active_v = _mm256_cmp_pd(active_v, zero, _CMP_LT_OS);
     __m256d neg_cc = _mm256_cmp_pd(cc, zero, _CMP_LT_OS);
