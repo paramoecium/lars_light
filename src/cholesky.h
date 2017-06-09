@@ -60,7 +60,9 @@ inline Real update_cholesky_n_solve(Real *L, Real *G, Real *w, const Real *v, co
   const Real *Xt_cur = Xt + cur * D;
   for (b_i = 0; b_i + B <= n; b_i += B) {
     /* initialize L(n, i) and w[i] */
-    for (i = b_i; i < b_i + B; i++) { // TODO Lily
+    for (i = b_i; i <= b_i + B - VEC_SIZE; i += VEC_SIZE)
+        _mm256_store_pd(w + i, _mm256_load_pd(v + i));
+    for (i = b_i; i < b_i + B; i++) {
       __m256d sum0 = _mm256_setzero_pd();
       __m256d sum1 = _mm256_setzero_pd();
       for (int x = 0; x < D; x += 8) {
@@ -76,7 +78,6 @@ inline Real update_cholesky_n_solve(Real *L, Real *G, Real *w, const Real *v, co
       sum0 = _mm256_hadd_pd(sum0, sum0);
       _mm256_store_pd(tmp_arr, sum0);
       G(n, i) = L(n, i) = tmp_arr[0] + tmp_arr[2];
-      w[i] = v[i];
     }
     /* compute mvms (BxB)(Bx1), avx and unroll4 */
     for (b_k = 0; b_k + B <= b_i; b_k += B) {
@@ -273,7 +274,7 @@ inline Real update_cholesky_n_solve(Real *L, Real *G, Real *w, const Real *v, co
     /* pivot the triangle, unroll2 */
     for (i = b_i; i > b_i - B; i--) {
       w[i] /= L(i, i);
-      AA += w[i] * v[i];
+      AA += fabs(w[i]);
       for (k = b_i - B + 1; k <= i - 2 ; k += 2) {
         w[k] -= L(i, k) * w[i];
         w[k + 1] -= L(i, k + 1) * w[i];
@@ -323,7 +324,7 @@ inline Real update_cholesky_n_solve(Real *L, Real *G, Real *w, const Real *v, co
   /* finish the remaining triangle */
   for (; i>= 0; i--) {
     w[i] /= L(i, i);
-    AA += w[i] * v[i];
+    AA += fabs(w[i]);
     for (k = 0; k <= i - 2; k += 2) {
       w[k] -= L(i, k) * w[i];
       w[k + 1] -= L(i, k + 1) * w[i];
