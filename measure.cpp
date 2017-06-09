@@ -11,7 +11,7 @@
 #include "rdtsc.h"
 #include "timer.h"
 
-#define RUNS 5
+#define RUNS 2
 #define CYCLES_REQUIRED 1e7
 #define VERIFY
 

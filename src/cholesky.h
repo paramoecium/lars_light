@@ -60,7 +60,8 @@ inline Real update_cholesky_n_solve(Real *L, Real *G, Real *w, const Real *v, co
   const Real *Xt_cur = Xt + cur * D;
   for (b_i = 0; b_i + B <= n; b_i += B) {
     /* initialize L(n, i) and w[i] */
-    _mm256_store_pd(w + b_i, _mm256_load_pd(v + b_i));
+    for (i = b_i; i <= b_i + B - VEC_SIZE; i += VEC_SIZE)
+        _mm256_store_pd(w + i, _mm256_load_pd(v + i));
     for (i = b_i; i < b_i + B; i++) {
       __m256d sum0 = _mm256_setzero_pd();
       __m256d sum1 = _mm256_setzero_pd();
