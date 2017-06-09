@@ -185,7 +185,7 @@ bool Lars::iterate() {
       __m256d x2 = _mm256_load_pd(&Xt[beta_id[tmp_int[j]] * D + i + 8]);
       __m256d x3 = _mm256_load_pd(&Xt[beta_id[tmp_int[j]] * D + i + 12]);
       __m256d x4 = _mm256_load_pd(&Xt[beta_id[tmp_int[j]] * D + i + 16]);
-      __m256d x5 = _mm256_load_pd(&Xt[beta_id[tmp_int[j]] * D + i + 18]);
+      __m256d x5 = _mm256_load_pd(&Xt[beta_id[tmp_int[j]] * D + i + 20]);
       __m256d x6 = _mm256_load_pd(&Xt[beta_id[tmp_int[j]] * D + i + 24]);
       __m256d x7 = _mm256_load_pd(&Xt[beta_id[tmp_int[j]] * D + i + 28]);
 
