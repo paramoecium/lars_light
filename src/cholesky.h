@@ -37,7 +37,7 @@ target = _mm256_add_pd(tmp1, tmp2);\
 
 const Real EPSILON = 1e-9;
 const int VEC_SIZE = 4;
-const int B = 1024; //block size, multiple of 16;
+const int B = 128; //block size, multiple of 16;
 /*
 1.
 X'X = LL', L is a n x n matrix in N x N memory
@@ -60,7 +60,8 @@ inline Real update_cholesky_n_solve(Real *L, Real *G, Real *w, const Real *v, co
   const Real *Xt_cur = Xt + cur * D;
   for (b_i = 0; b_i + B <= n; b_i += B) {
     /* initialize L(n, i) and w[i] */
-    for (i = b_i; i < b_i + B; i++) { // TODO Lily
+    _mm256_store_pd(w + b_i, _mm256_load_pd(v + b_i));
+    for (i = b_i; i < b_i + B; i++) {
       __m256d sum0 = _mm256_setzero_pd();
       __m256d sum1 = _mm256_setzero_pd();
       for (int x = 0; x < D; x += 8) {
@@ -76,7 +77,6 @@ inline Real update_cholesky_n_solve(Real *L, Real *G, Real *w, const Real *v, co
       sum0 = _mm256_hadd_pd(sum0, sum0);
       _mm256_store_pd(tmp_arr, sum0);
       G(n, i) = L(n, i) = tmp_arr[0] + tmp_arr[2];
-      w[i] = v[i];
     }
     /* compute mvms (BxB)(Bx1), avx and unroll4 */
     for (b_k = 0; b_k + B <= b_i; b_k += B) {
