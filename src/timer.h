@@ -1,5 +1,6 @@
 #include "rdtsc.h"
 #include "assert.h"
+#include "util.h"
 
 #include "timer_id.h"
 
@@ -23,9 +24,9 @@ private:
 };
 
 inline Timer::Timer(int max_size_in) : max_size(max_size_in) {
-  clocks = (double *) calloc(max_size, sizeof(double));
-  laps = (tsc_counter *) malloc(max_size * sizeof(tsc_counter));
-  call_cnt = (int *) calloc(max_size, sizeof(int));
+  clocks = (double *) _mm_malloc(max_size * sizeof(double), 32);
+  laps = (tsc_counter *) _mm_malloc(max_size * sizeof(tsc_counter), 32);
+  call_cnt = (int *) _mm_malloc(max_size * sizeof(int), 32);
   
 }
 
