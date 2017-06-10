@@ -18,7 +18,7 @@ set(CMAKE_CXX_FLAGS_DEBUG   "")
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 
     # clang - C++ flags
-    set(CMAKE_CXX_FLAGS "-O3 -std=c++11")
+    set(CMAKE_CXX_FLAGS "-O3 -std=c++11 -mavx2 -mfma")
 
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 
@@ -45,7 +45,7 @@ endif()
 if (CMAKE_C_COMPILER_ID MATCHES "Clang")
 
     # clang - CC flags
-    set(CMAKE_C_FLAGS "-O3 -march=core-avx2")
+    set(CMAKE_C_FLAGS "-O3 -march=core-avx2 -mavx2 -mfma")
 
 elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
 
