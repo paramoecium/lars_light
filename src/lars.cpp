@@ -111,7 +111,7 @@ bool Lars::iterate() {
   }
 
   // get the actual w[]
-  timer.start(GET_A);
+  timer.start(GET_U);
   for (int i = 0; i <= active_itr; ++i) {
     w[i] *= AA;
   }
@@ -132,7 +132,9 @@ bool Lars::iterate() {
   for (int i = 0; i <= active_itr; ++i) {
     axpy(w[i], &Xt[beta[i].id * D], u, D);
   }
+  timer.end(GET_U);
 
+  timer.start(GET_A);
   // a = X' * u
   mvm(Xt, false, u, a, K, D);
   timer.end(GET_A);
