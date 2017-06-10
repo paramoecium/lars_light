@@ -58,6 +58,12 @@ bool Lars::iterate() {
       C = fabs(c[i]);
     }
   }
+
+  // set w[] = sign(c[])
+  for (int i = 0; i < active_itr; ++i) {
+    w[i] = sign(c[beta[i].id]);
+  }
+
   timer.end(GET_ACTIVE_IDX);
 
   // All remainging C are 0
@@ -70,13 +76,9 @@ bool Lars::iterate() {
 
   active[cur] = active_itr;
   beta[active_itr] = Idx(cur, 0);
-
+  w[active_itr] = sign(c[cur]);
 
   timer.start(FUSED_CHOLESKY);
-  // set w[] = sign(c[])
-  for (int i = 0; i <= active_itr; ++i) {
-    w[i] = sign(c[beta[i].id]);
-  }
 
   // calculate Xt_A * Xcur, Matrix * vector
   // new active row to add to gram matrix of active set
@@ -170,10 +172,10 @@ bool Lars::iterate() {
   timer.end(UPDATE_BETA);
 
   // update correlation with a
-  timer.start(UPDATE_CORRELATION);
+  timer.start(GET_ACTIVE_IDX);
   for (int i = 0; i < K; ++i)
     c[i] -= gamma * a[i];
-  timer.end(UPDATE_CORRELATION);
+  timer.end(GET_ACTIVE_IDX);
 
   print("beta: ");
   for (int i = 0; i <= active_itr; ++i) print("%d %.3f ", beta[i].id, beta[i].v);
