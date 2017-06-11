@@ -33,11 +33,11 @@ struct Lars {
 
   Real *tmp; // temporary storage for active correlations
 
-  Timer timer;
+  Timer *timer;
 
   // allocate all needed memory
   // input fixed numbers
-  Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in, Timer &timer_in);
+  Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in, Timer *timer_in);
 
   ~Lars();
 

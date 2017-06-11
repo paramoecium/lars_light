@@ -21,7 +21,7 @@ int main() {
   double cycles = 0.;
   size_t num_runs = 1;
   // Initailize data
-  const int D = 1 << 10, K = 2 * D;
+  const int D = 1 << 7, K = 2 * D;
   //const int Max_D = 600, Max_K = 600;
   Real lambda = 0.0;
   Timer timer(END_ITR);
@@ -31,7 +31,7 @@ int main() {
   Real *beta = (Real*) malloc(sizeof(Real) * K);
   Real *beta_h = (Real*) malloc(sizeof(Real) * K);
   set_value(D, K, Xt, y, beta);
-  Lars lars(Xt, D, K, lambda, timer);
+  Lars lars(Xt, D, K, lambda, &timer);
     
   timer.reset();
   CPUID(); RDTSC(start);
@@ -44,4 +44,8 @@ int main() {
 
   cycles = (double) (COUNTER_DIFF(end, start)) / num_runs;
   printf("TOTAL, %.3f\n\n", cycles);
+  free(Xt);
+  free(y);
+  free(beta);
+  free(beta_h);
 }

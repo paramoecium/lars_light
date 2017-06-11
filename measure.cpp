@@ -15,7 +15,7 @@
 #define CYCLES_REQUIRED 1e7
 #define VERIFY
 
-int measure(const int D, const int K, Real *Xt, Real *y, Real *beta, Real *beta_h, Real lambda, Timer timer) {
+int measure(const int D, const int K, Real *Xt, Real *y, Real *beta, Real *beta_h, Real lambda, Timer *timer) {
   tsc_counter start, end;
   double cycles = 0.;
   size_t num_runs = RUNS;
@@ -28,14 +28,14 @@ int measure(const int D, const int K, Real *Xt, Real *y, Real *beta, Real *beta_
   // to ignore the timing overhead
   Lars lars(Xt, D, K, lambda, timer);
 
-  timer.reset();
+  timer->reset();
   CPUID(); RDTSC(start);
   for (int i = 0; i < num_runs; ++i) {
       lars.set_y(y);
       lars.solve();
   }
   CPUID(); RDTSC(end);
-  timer.print(num_runs);
+  timer->print(num_runs);
 
   cycles = (double) (COUNTER_DIFF(end, start)) / num_runs;
 
@@ -78,7 +78,7 @@ int main() {
     printf("\nD = %d, K = %d\n", i , 2 * i);
     timer.reset();
     set_value(i, 2 * i, Xt, y, beta);
-    int num_runs = measure(i, 2 * i, Xt, y, beta, beta_h, lambda, timer);
+    int num_runs = measure(i, 2 * i, Xt, y, beta, beta_h, lambda, &timer);
 
   }
 }

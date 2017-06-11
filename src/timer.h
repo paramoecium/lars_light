@@ -8,6 +8,7 @@
 class Timer{
 public:
   Timer(int max_size_in);
+  ~Timer();
   void reset();
   void start(TIMER_ID id);
   void end(TIMER_ID id);
@@ -27,6 +28,12 @@ inline Timer::Timer(int max_size_in) : max_size(max_size_in) {
   laps = (tsc_counter *) malloc(max_size * sizeof(tsc_counter));
   call_cnt = (int *) calloc(max_size, sizeof(int));
   
+}
+
+inline Timer::~Timer() {
+  free(clocks);
+  free(laps);
+  free(call_cnt);
 }
 
 inline void Timer::reset() {
