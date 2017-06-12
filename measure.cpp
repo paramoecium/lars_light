@@ -76,7 +76,7 @@ int main() {
   Real *beta = (Real*) malloc(sizeof(Real) * Max_K);
   Real *beta_h = (Real*) malloc(sizeof(Real) * Max_K);
 
-  for (int i = 1 << 2; i <= Max_D; i <<=1) {
+  for (int i = 1 << 5; i <= Max_D; i <<=1) {
     printf("\nD = %d, K = %d\n", i , 2 * i);
     timer.reset();
     set_value(i, 2 * i, Xt, y, beta);
