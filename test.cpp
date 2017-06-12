@@ -22,7 +22,8 @@ int main() {
   double cycles = 0.;
   size_t num_runs = 1;
   // Initailize data
-  const int D = 1 << 2, K = 2 * D;
+  const int D = 1 << 10, K = 2 * D;
+  printf("\nD = %d, K = %d\n", D , K);
   //const int Max_D = 600, Max_K = 600;
   Real lambda = 0.0;
   Timer timer(END_ITR);
