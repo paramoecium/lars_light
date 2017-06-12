@@ -29,8 +29,11 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
 
     # Intel ICC - C++ flags
-    set(CMAKE_CXX_FLAGS "-O3 -ansi-alias -no-vec -unroll=0 ")
-    #set(CMAKE_CXX_FLAGS "-O3 -xHost -ansi-alias -march=core-avx2 -vec_report1")
+    #set(CMAKE_C_FLAGS "-O3 -std=c++11 -ansi-alias -no-vec -unroll=0 ")
+    #set(CMAKE_CXX_FLAGS "-O3 -std=c++11 -ansi-alias -no-vec -unroll=4 ")
+    set(CMAKE_CXX_FLAGS "-O3 -std=c++11 -ansi-alias -no-vec -unroll=4 -auto-ilp32 -static-libcxa ")
+    #set(CMAKE_C_FLAGS "-O3 -std=c++11 -xHost -ansi-alias -march=core-avx2 -vec_report1")
+    #set(CMAKE_CXX_FLAGS "-O3 -std=c++11 -xHost -ansi-alias -unroll=4 -march=core-avx2 -auto-ilp32 -static-libcxa -vec_report1")
 
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 
@@ -57,8 +60,11 @@ elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
 elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "Intel")
 
     # Intel ICC - CC flags
-    set(CMAKE_C_FLAGS "-O3 -ansi-alias -no-vec -unroll=0 ")
-    #set(CMAKE_C_FLAGS "-O3 -xHost -ansi-alias -march=core-avx2 -vec_report1")
+    #set(CMAKE_C_FLAGS "-O3 -std=c++11 -ansi-alias -no-vec -unroll=0 ")
+    #set(CMAKE_CXX_FLAGS "-O3 -std=c++11 -ansi-alias -no-vec -unroll=4 ")
+    set(CMAKE_CXX_FLAGS "-O3 -std=c++11 -ansi-alias -no-vec -unroll=4 -auto-ilp32 -static-libcxa ")
+    #set(CMAKE_C_FLAGS "-O3 -std=c++11 -xHost -ansi-alias -march=core-avx2 -vec_report1")
+    #set(CMAKE_CXX_FLAGS "-O3 -std=c++11 -xHost -ansi-alias -unroll=4 -march=core-avx2 -auto-ilp32 -static-libcxa -vec_report1")
 
 elseif ("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
 
