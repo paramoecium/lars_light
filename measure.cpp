@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <cstring>
 #include <time.h>
-
+    
 #include <x86intrin.h>
 
 #include "util.h"
@@ -11,14 +11,16 @@
 #include "rdtsc.h"
 #include "timer.h"
 
-#define RUNS 2
+#define RUNS 10
 #define CYCLES_REQUIRED 1e7
 #define VERIFY
 
 int measure(const int D, const int K, Real *Xt, Real *y, Real *beta, Real *beta_h, Real lambda, Timer *timer) {
   tsc_counter start, end;
   double cycles = 0.;
-  size_t num_runs = RUNS;
+  size_t num_runs = size_t(fmax(300-40*log2(D), 3));
+  printf(" num_runs =  %d\n", num_runs);
+
 
   CPUID(); RDTSC(start); CPUID(); RDTSC(end);
   CPUID(); RDTSC(start); CPUID(); RDTSC(end);
@@ -74,7 +76,7 @@ int main() {
   Real *beta = (Real*) malloc(sizeof(Real) * Max_K);
   Real *beta_h = (Real*) malloc(sizeof(Real) * Max_K);
 
-  for (int i = 1 << 7; i <= Max_D; i <<=1) {
+  for (int i = 1 << 2; i <= Max_D; i <<=1) {
     printf("\nD = %d, K = %d\n", i , 2 * i);
     timer.reset();
     set_value(i, 2 * i, Xt, y, beta);
