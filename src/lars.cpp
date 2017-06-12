@@ -7,7 +7,7 @@
 #define LARS_CPP
 #define G(i, j) G[((i * (i + 1))>>1) - 1 + j]
 
-Lars::Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in, Timer &timer_in):
+Lars::Lars(const Real *Xt_in, int D_in, int K_in, Real lambda_in, Timer *timer_in):
     Xt(Xt_in), D(D_in), K(K_in), lambda(lambda_in), timer(timer_in) {
 
   beta_id = (int*) _mm_calloc(K * sizeof(int));
@@ -49,7 +49,7 @@ void Lars::set_y(const Real *y_in) {
 
   for (int i = 0; i < active_size; i++) tmp_int[i] = i;
 
-  timer.start(INIT_CORRELATION);
+  timer->start(INIT_CORRELATION);
   for (int i = 0; i < K; i += 4) {
     active[i+0] = -1;
     active[i+1] = -1;
@@ -81,7 +81,7 @@ void Lars::set_y(const Real *y_in) {
     c[i+3] = tmp[5] + tmp[7];
   }
   // mvm(Xt, false, y, c, K, D);
-  timer.end(INIT_CORRELATION);
+  timer->end(INIT_CORRELATION);
 }
 
 Lars::~Lars() {
@@ -97,7 +97,7 @@ bool Lars::iterate() {
   const __m256d mone = _mm256_set1_pd(-1);
   const __m256d pone = _mm256_set1_pd(1);
 
-  timer.start(GET_ACTIVE_IDX);
+  timer->start(GET_ACTIVE_IDX);
   __m256d maxv = _mm256_setzero_pd();
   __m256d curv = _mm256_set1_pd(-1);
   __m256d posv = _mm256_set_pd(-1.0, -2.0, -3.0, -4.0);
@@ -128,7 +128,7 @@ bool Lars::iterate() {
     if (tmp[i] > C) {cur = (int)tmp[i+4]; C = tmp[i];} 
   }
 
-  timer.end(GET_ACTIVE_IDX);
+  timer->end(GET_ACTIVE_IDX);
 
   // All remainging C are 0
   if (cur == -1) return false;
@@ -145,9 +145,9 @@ bool Lars::iterate() {
   // calculate Xt_A * Xcur, Matrix * vector
   // new active row to add to gram matrix of active set
 
-  timer.start(FUSED_CHOLESKY);
+  timer->start(FUSED_CHOLESKY);
   Real AA = update_cholesky_n_solve(L, G, w, sgn, active_itr, active_size, Xt, cur, beta_id, beta_v, D);
-  timer.end(FUSED_CHOLESKY);
+  timer->end(FUSED_CHOLESKY);
 
   // get the actual w[]
   // get a = X' X_a w
@@ -161,7 +161,7 @@ bool Lars::iterate() {
   memset(tmp, 0, (1+active_itr)*sizeof(Real));
   // u = X_a * w
 
-  timer.start(GET_U);
+  timer->start(GET_U);
   int B_size = fmin(512, active_size), B_cnt = (1 + active_itr) / B_size;
   for (int j = 0; j <= active_itr; j++) {
     w[tmp_int[j]] *= AA;
@@ -195,9 +195,9 @@ bool Lars::iterate() {
       _mm256_store_pd(&u[i+28], _mm256_fmadd_pd(ww, x7, u7));
     }
   }
-  timer.end(GET_U);
+  timer->end(GET_U);
 
-  timer.start(GET_A);
+  timer->start(GET_A);
   // a = X' * u
   for (int b_j = 0; b_j < K; b_j += B_size) {
     for (int b_i = 0; b_i < D; b_i += B_size) {
@@ -231,9 +231,9 @@ bool Lars::iterate() {
       }
     }
   }
-  timer.end(GET_A);
+  timer->end(GET_A);
 
-  timer.start(GET_GAMMA);
+  timer->start(GET_GAMMA);
   gamma = C / AA;
   int gamma_id = cur;
   if (active_itr < active_size) {
@@ -272,10 +272,10 @@ bool Lars::iterate() {
     _mm256_store_pd(tmp+4, min_p);
     for (int i = 0; i < 8; i++) if (tmp[i] > 0 and tmp[i] < gamma) gamma = tmp[i];
   }
-  timer.end(GET_GAMMA);
+  timer->end(GET_GAMMA);
 
 
-  timer.start(UPDATE_BETA);
+  timer->start(UPDATE_BETA);
   int V_size = (active_itr + 1) / 16, V_res = (active_itr+1)%16;
   __m256d g_gw = _mm256_set1_pd(gamma);
   for (int ii = 0; ii < V_size; ++ii) {
@@ -301,7 +301,7 @@ bool Lars::iterate() {
     int i = 16 * V_size + ii;
     beta_v[i] += gamma * w[i];
   }
-  timer.end(UPDATE_BETA);
+  timer->end(UPDATE_BETA);
 
   active_itr++;
 
@@ -355,7 +355,7 @@ void Lars::getParameters(Real* beta_out) const {
 // computes lambda given beta, lambda = max(abs(2*X'*(X*beta - y)))
 inline Real Lars::compute_lambda() {
   // compute (y - X*beta)
-  timer.start(COMPUTE_LAMBDA);
+  timer->start(COMPUTE_LAMBDA);
 //#define LAMBDA
 #ifdef LAMBDA
   memset(u, 0, D * sizeof(Real));
@@ -488,7 +488,7 @@ inline Real Lars::compute_lambda() {
 
 
 
-  timer.end(COMPUTE_LAMBDA);
+  timer->end(COMPUTE_LAMBDA);
   return max_lambda;
 }
 

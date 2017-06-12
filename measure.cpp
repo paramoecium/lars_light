@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <cstring>
 #include <time.h>
-
+    
 #include <x86intrin.h>
 
 #include "util.h"
@@ -11,14 +11,16 @@
 #include "rdtsc.h"
 #include "timer.h"
 
-#define RUNS 5
+#define RUNS 10
 #define CYCLES_REQUIRED 1e7
 #define VERIFY
 
-int measure(const int D, const int K, Real *Xt, Real *y, Real *beta, Real *beta_h, Real lambda, Timer timer) {
+int measure(const int D, const int K, Real *Xt, Real *y, Real *beta, Real *beta_h, Real lambda, Timer *timer) {
   tsc_counter start, end;
   double cycles = 0.;
-  size_t num_runs = RUNS;
+  size_t num_runs = size_t(fmax(300-40*log2(D), 3));
+  printf(" num_runs =  %d\n", num_runs);
+
 
   CPUID(); RDTSC(start); CPUID(); RDTSC(end);
   CPUID(); RDTSC(start); CPUID(); RDTSC(end);
@@ -28,14 +30,14 @@ int measure(const int D, const int K, Real *Xt, Real *y, Real *beta, Real *beta_
   // to ignore the timing overhead
   Lars lars(Xt, D, K, lambda, timer);
 
-  timer.reset();
+  timer->reset();
   CPUID(); RDTSC(start);
   for (int i = 0; i < num_runs; ++i) {
       lars.set_y(y);
       lars.solve();
   }
   CPUID(); RDTSC(end);
-  timer.print(num_runs);
+  timer->print(num_runs);
 
   cycles = (double) (COUNTER_DIFF(end, start)) / num_runs;
 
@@ -64,26 +66,21 @@ Real *beta) {
 }
 
 int main() {
-  const int Max_D = 1 << 13, Max_K = 2 * Max_D;
+  const int Max_D = 1 << 12, Max_K = 2 * Max_D;
   //const int Max_D = 600, Max_K = 600;
   Real lambda = 0.0;
   Timer timer(END_ITR);
 
-  for (int i = 1 << 7; i <= Max_D; i <<= 1) {
+  Real *Xt = (Real*) malloc(sizeof(Real) * Max_D * Max_K);
+  Real *y = (Real*) malloc(sizeof(Real) * Max_D);
+  Real *beta = (Real*) malloc(sizeof(Real) * Max_K);
+  Real *beta_h = (Real*) malloc(sizeof(Real) * Max_K);
 
-    int D = i, K = 2 * i;
-    Real *Xt = (Real*) _mm_malloc(D * K * sizeof(Real), 32);
-    Real *y = (Real*) _mm_malloc(D * sizeof(Real), 32);
-    Real *beta = (Real*) _mm_malloc(K * sizeof(Real), 32);
-    Real *beta_h = (Real*) _mm_malloc(K * sizeof(Real), 32);
-
-    printf("\nD = %d, K = %d\n", D , K);
+  for (int i = 1 << 5; i <= Max_D; i <<=1) {
+    printf("\nD = %d, K = %d\n", i , 2 * i);
     timer.reset();
-    set_value(D, K, Xt, y, beta);
-    int num_runs = measure(D, K, Xt, y, beta, beta_h, lambda, timer);
-    _mm_free(Xt);
-    _mm_free(y);
-    _mm_free(beta);
-    _mm_free(beta_h);
+    set_value(i, 2 * i, Xt, y, beta);
+    int num_runs = measure(i, 2 * i, Xt, y, beta, beta_h, lambda, &timer);
+
   }
 }
