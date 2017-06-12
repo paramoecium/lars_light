@@ -379,7 +379,7 @@ inline Real Lars::compute_lambda() {
 
   Real max_lambda = 0;
   memset(u, 0, D * sizeof(Real));
-  int B_size = 8, B_cnt = active_itr / B_size;
+  int B_size = 16, B_cnt = active_itr / B_size;
   for (int b_j = 0; b_j < B_cnt * B_size; b_j += B_size) {
     for (int b_i = 0; b_i < D; b_i += B_size) {
       for (int j = b_j; j < b_j + B_size; j++) {
