@@ -1,28 +1,180 @@
-Give a short, self-contained summary of necessary
-background information. For example, assume you present an
-implementation of FFT algorithms. You could organize into DFT
-definition, FFTs considered, and cost analysis. The goal of the
-background section is to make the paper self-contained for an audience
-as large as possible. As in every section
-you start with a very brief overview of the section. Here it could be as follows: In this section 
-we formally define the discrete Fourier transform, introduce the algorithms we use
-and perform a cost analysis.
 
-\mypar{Discrete Fourier Transform}
-Precisely define the transform so I understand it even if I have never
-seen it before.
+In this section, we first introduce a formal representation of LARS and the algorithm that is implemented to solve the formulas.
+We then introduce Incremental Cholesky decomposition in Section~\ref{ssec:cholesky} and formulate how we calculate the cost of the program in Section~\ref{ssec:cost-analysis} and show the exact number of operations throughout the whole program in Table~\ref{tab:cost}.
 
-\mypar{Fast Fourier Transforms}
-Explain the algorithm you use.
+\subsection{A Formal Definition of LARS}
+An L1-regularized linear regression problem is described as follows:
+$$
+min_\beta{||y-X\beta||^2_2} \ s.t\ ||\beta||_1 \leq l
+$$
+And the dual form of the problem that LARS solves:
+$$
+min_\beta{||y-X\beta||^2_2} + \lambda||\beta||_1
+$$
 
-\mypar{Cost Analysis}
-First define you cost measure (what you count) and then compute the
-cost. Ideally precisely, at least asymptotically. In the latter case you will need to instrument your code to count
-the operations so you can create a performance plot.
+A more formal representation of how LARS produces a piece-wise linear solution path is described in Algorithm~\ref{alg:lars}.
+In the beginning of the algorithm, the current residual is equal to the input $y$. The correlation is initialized at line~\ref{alg:lars:initailize_correlation}.
+In each iteration, the correlation is updated and the most correlated basis to current residual is added into the active set $A$ as shown in line~\ref{alg:lars:get_active_idx} - \ref{alg:lars:get_active_idx_end}.
+The unit vector of the equiangular direction, $u_A$, is computed in line~\ref{alg:lars:cholesky} - \ref{alg:lars:get_a}, and the distance to walk is computed at line~\ref{alg:lars:get_gamma}.
+The current approximation of $y$ is then update at line~\ref{alg:lars:update_beta}.
+The \texttt{while} loop continues until the $\hat{\lambda}$, computed at line~\ref{alg:lars:compute_lambda} is greater than the given parameter $\lambda$.
 
-Also state what is
-known about the complexity (asymptotic usually) 
-about your problem (including citations).
 
-Don't talk about "the complexity of the algorithm.'' It's incorrect,
-remember (Lecture 2)?
+% Insert the algorithm
+\begin{algorithm}
+	\caption{Compute sum of integers in array}
+	\label{alg:lars}
+	\begin{algorithmic}[1]
+		\Procedure{LARS}{$X, y, \lambda$}
+		    \State $\hat{c} = X^T y$, $\hat{\beta} \gets 0$ \label{alg:lars:initailize_correlation}
+		    \While {\textsc{Compute\_$\lambda$()} $< \lambda$ }
+		      % Get_active_idx
+		      \State $\hat{c} \gets \hat{c} - X^T \hat{\beta}$ \label{alg:lars:get_active_idx}
+		      \State $\hat{C} \gets \max_j{|\hat{c}_j|}$
+		      , $A \gets \{j, |\hat{c}_j| = \hat{C} \}$
+		      \State $s_A \gets \{sign(\hat{c}_j), j \in A\}$ \label{alg:lars:get_active_idx_end}
+		      
+		      % Cholesky
+		      \State $G_A \gets X_A^T X_A$ \label{alg:lars:cholesky}
+		      \State $w_A \gets G_A^{-1} s_A$
+		      \label{alg:lars:inversion}
+		      \State $A_A \gets \sqrt{1_A^T w_A}$ \label{alg:lars:cholesky_end}
+		      
+		      % Get_U
+		      \State $u_A \gets A_A X_A w_A$ \label{alg:lars:get_u}
+		      
+		      % Get_A
+		      \State $a \gets X^T u_A$ \label{alg:lars:get_a}
+
+		      % Get_gamma
+		      \State $\hat{\gamma} = \min_{j \in A^c}^+ \Big\{ \frac{\hat{C} - \hat{c_j}}{A_A - a_j},  \frac{\hat{C} + \hat{c_j}}{A_A + a_j}\Big\}$ \label{alg:lars:get_gamma}
+		      
+		      % Update_beta
+		      \State $\hat{\beta} \gets \hat{\beta} + \hat{\gamma} u_A$ \label{alg:lars:update_beta}
+		    
+		    \EndWhile
+            \State Return $\hat{\beta}$
+		\EndProcedure
+		
+		\Procedure{Compute\_$\lambda$}{}\label{alg:lars:compute_lambda}
+		    \State $\Lambda = X_A^T ( X_A \hat{\beta} - y)$
+    		\State Return $\max_{\lambda_i \in \Lambda} \big\{ |\lambda_i| \big\}$ 
+		\EndProcedure
+	\end{algorithmic}
+\end{algorithm}
+
+
+\subsection{Incremental Cholesky}
+\label{ssec:cholesky}
+%\mypar{baseline implementation}
+In order to solve $w_A$, the weighting function that composes the new direction as shown in line~\ref{alg:lars:inversion} of the Algorithm~\ref{alg:lars}, we have to calculate the inverse of the correlation matrix of the active basis. Throughout each iteration, one new basis will be added into the active basis. Instead of recalculating the inverse, which is $O(n^3)$ in complexity, in every iteration, we use incremental cholesky, which is $O(N^2)$ in complexity, that updates the triangular solver according to the newly added basis in each iteration.
+
+We separate the baseline version of implementation that solves $w_A = G_A^{-1} s_A$ into two parts: \textit{update cholesky solver} and \textit{backsolve the target}.
+
+\mypar{Update cholesky solver}
+Suppose we have a correlation matrix $X_{A_{t-1}}^T X_{A_{t-1}}$, in iteration $t$, to update the correlation matrix with the new basis $v$, we only add a new column and a new row to the previous correlation matrix, getting the new correlation matrix:
+\[
+G_{A_t} = 
+\begin{bmatrix}
+X_{A_{t-1}}^T X_{A_{t-1}}   &   X_{A_{t-1}}^T v \\
+v^T X_{A_{t-1}}             &   \sqrt{v^T v}
+\end{bmatrix}
+\].
+We then update the lower triangle of $G_A$ with:
+\[
+L_t = 
+\begin{bmatrix}
+L_{t-1}   &    0 \\
+v^T X_{A_{t-1}} (L_{t-1}^{-1})^T  &  \sqrt{v^T v - |v^T X_A (L_{t-1}^-1)^T | ^2}
+\end{bmatrix}
+\]
+To compute $v^T X_{A_{t-1}} (L_{t-1}^{-1})^T$, we solve $w$ for
+$$
+L_{t-1} w = X_{A_{t-1}} v
+$$ with Gaussian elimination. 
+
+\mypar{backsolve the target}
+Inverting correlation matrix $G_{A_t}$ is inverting the corresponding Cholesky decomposition $LL^T$, which can be done by solving a lower triangular system and a upper triangular system sequentially. 
+
+
+
+\subsection{Cost Analysis}
+\label{ssec:cost-analysis}
+% Define cost measure
+Each math function (add, mult, div, sqrt, etc.) is associated with a specific number of floating point operations, which is derived from the proportion of its throughput to the throughput of floating point addition. For example, a division of two doubles counts as 16 floating point operations, because the throughput of  \texttt{\_mm256\_div\_pd} is $1/8$ according to Intel Intrinsics Guide \cite{Intrinsics} while the throughput of \texttt{\_mm256\_add\_pd} is two. The relative floating point operation counts of all math functions used in the algorithm is listed in Table~\ref{tab:flop_def}.
+ 
+\begin{table}
+\centering
+\begin{tabular}{|c||c|c|c|c|c|c|c|}
+\hline
+operation & cmp & add & mul & fma & div & sqrt & abs \\ \hline
+flop count & 1 & 1 & 1 & 1 & 16 & 24 & 1.5 \\ \hline
+\end{tabular}
+\caption{Relative flop count of operations.}
+\label{tab:flop_def}
+\end{table}
+
+%% Description for the table.
+Since we are solving sparse and overcomplete representations of input, the dictionary size $k$ is usually larger than the signal dimension $d$. The number of iterations in LARS depends on the regularization parameter $\lambda$ and the values of the target signal. For simplicity of analysis, we set $k = 2d$ and $\lambda = 0$, so that the algorithm always ends in $d$ iterations. 
+
+For optimization purposes, we counted the exact floating point operations within different parts of the algorithm LARS as shown in Table~\ref{tab:cost}. With Table~\ref{tab:flop_def} and Table~\ref{tab:cost}, we can calculate the approximate floating point operation counts of each code segment.
+
+
+\begin{table*}[ht!]
+\centering
+\begin{tabular}{|c || c | c | c | c | c | c | c | c |}
+\hline
+ Code Segment & Line & cmp & add & mul & fma & div & sqrt & abs \\
+\hline\hline
+\textsc{Init\_Correlation} & 2 & 0 & 0 & 0 & $2D^2$ & 0 & 0 & 0 \\ 
+\textsc{Find\_Active\_Idx} & 4-6 & $7D^2+D$ & 0 & 0 & 0 & 0 & 0 & $\frac{D(D+1)}{2}$ \\
+\textsc{Fused\_Cholesky} & 7-9 & $D$ & $\frac{D(D+1)}{2}$ & 0 & $\frac{D(D+1)(8D-2)}{6}$ & $\frac{D(D+1)}{2}$ & $2D$ & $\frac{D(D+1)}{2}$ \\
+\textsc{Compute\_U} & 10 & 0 & 0 & $\frac{D(D+1)}{2}$ & $\frac{D^2(D+1)}{2}$ & 0 & 0 & 0  \\
+\textsc{Compute\_A} & 11 & 0 & 0 & 0 & $2D^3$ & 0 & 0 & 0  \\
+\textsc{Compute\_$\gamma$} & 12 & $4D^2+3D$ & $2D^2+2D$ & 0 & 0 & $D^2+2D$ & 0 & 0  \\
+\textsc{Update\_$\beta$} & 13 & 0 & 0 & 0 & $\frac{D(D+1)}{2}$ & 0 & 0 & 0  \\
+\textsc{Compute\_$\lambda$} & 18 & $2D^2$ & 0 & 0 & $\frac{D^2(D+3)}{2}$ & 0 & 0 & $2D^2$  \\
+\hline
+\textsc{Total} & * & $13D^2+4D$ & $\frac{5D(D+1)}{2}$ & $\frac{D(D+1)}{2}$ & $\frac{D(29D^2+42D+1)}{6}$ & $\frac{D(3D+5)}{2}$ & $2D$ & $D(3D+1)$  \\
+\hline
+\end{tabular}
+\caption{Cost analysis on each code segments of Algorithm~\ref{alg:lars}. $D$ is the dimension of the target signal.}
+\label{tab:cost}
+\end{table*}
+
+% Asymptotic complexity
+
+
+
+
+
+
+%  Give a short, self-contained summary of necessary
+%  background information. For example, assume you present an
+%  implementation of FFT algorithms. You could organize into DFT
+%  definition, FFTs considered, and cost analysis. The goal of the
+%  background section is to make the paper self-contained for an audience
+%  as large as possible. As in every section
+%  you start with a very brief overview of the section. Here it could be as follows: In this section 
+%  we formally define the discrete Fourier transform, introduce the algorithms we use
+%  and perform a cost analysis.
+%  
+%  \mypar{Discrete Fourier Transform}
+%  Precisely define the transform so I understand it even if I have never
+%  seen it before.
+%  
+%  \mypar{Fast Fourier Transforms}
+%  Explain the algorithm you use.
+%  
+%  \mypar{Cost Analysis}
+%  First define you cost measure (what you count) and then compute the
+%  cost. Ideally precisely, at least asymptotically. In the latter case you will 
+%  need to instrument your code to count
+%  the operations so you can create a performance plot.
+%  
+%  Also state what is
+%  known about the complexity (asymptotic usually) 
+%  about your problem (including citations).
+%  
+%  Don't talk about "the complexity of the algorithm.'' It's incorrect,
+%  remember (Lecture 2)?

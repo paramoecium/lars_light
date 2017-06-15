@@ -1,24 +1,54 @@
-Do not start the introduction with the abstract or a slightly modified
-version. It follows a possible structure of the introduction. 
-Note that the structure can be modified, but the
-content should be the same. Introduction and abstract should fill at most the first page, better less.
+% \mypar{Motivation}
+% What is online dictionary learning, why is this important.
+% mention we only optimize lars?
+% We optimize LARS, why we optimize LARS
+% What have we optimized?
+% One sentence result on how we improve it.
+% Give a small description on what each section is doing
+% \mypar{Related work?}
 
-\mypar{Motivation} The first task is to motivate what you do.  You can
-start general and zoom in one the specific problem you consider.  In
-the process you should have explained to the reader: what you are doing,
-why you are doing, why it is important (order is usually reversed).
 
-For example, if my result is the fastest DFT implementation ever, one
-could roughly go as follows. First explain why the DFT is important
-(used everywhere with a few examples) and why performance matters (large datasets,
-realtime). Then explain that fast implementations are very hard and
-expensive to get (memory hierarchy, vector, parallel). 
+% \mypar{Online Sparse Dictionary Learning}
+% % include the psuedo-code from the original paper?
+Dictionary learning has been used widely in machine learning, signal processing and image processing.
+In sparse dictionary learning, the goal is to approximate a given signal using only a few basis elements from the learned dictionary. More specifically, given a bunch of signals $Y$ in $\mathbb{R}^d$ and a dictionary $X$ in $\mathbb{R}^{d \times k}$, with k columns referred to as atoms, the algorithm is meant for finding a linear combination of most representative atoms from the dictionary.
 
-Now you state what you do in this paper. In our example: 
-presenting a DFT implementation that is
-faster for some sizes than all the other ones.
+To handle very large training sets and dynamic training data changing over time, Mairal et al. proposes an online learning algorithm for dictionary learning\cite{Mairal:2010}. In each iteration $i$ of the algorithm, sparse coding is used to compute the sparse representation $\beta_i$ of a random sample $y$ in $\mathbb{R}^d$ from a distribution $p(y)$. $\beta_i$ is then used to update the dictionary $X$.
 
-\mypar{Related work} Next, you have to give a brief overview of
-related work. For a paper like this, anywhere between 2 and 8
-references. Briefly explain what they do. In the end contrast to what
-you do to make now precisely clear what your contribution is.
+% \mypar{Least Angle Regression (LARS)}
+LARS is one of the well-known sparse coding algorithms, developed by Bradley Efron et al.\cite{Efron:04} that is less greedy and more computationally efficient. Given a collection of column vectors as dictionary $X$, LARS always picks the columns of $X$ most correlated to current residual and walk along their equiangular direction until some other unused column has as much correlation with the current residual.
+
+Since LARS is a significant part of the dictionary learning and is also widely applicable in feature selection applications, the goal of this paper is to proposed optimization methods that are applicable to the implementation of LARS ans its variants, and justify these optimization methods do speed up the entire procedure and enhance the performance.
+
+In the following sections, we first formally define LARS, introduce incremental Cholesky decomposition and shows a detail cost analysis on the entire procedure in Section~\ref{sec:background}.
+Then we present the optimization we applied in Section~\ref{sec:method} and show the result in Section~\ref{sec:experiment}. At last, we summarize our work and list future works in Section~\ref{sec:conclusions}.
+
+
+
+
+
+
+%  Do not start the introduction with the abstract or a slightly modified
+%  version. It follows a possible structure of the introduction. 
+%  Note that the structure can be modified, but the
+%  content should be the same. Introduction and abstract should fill at most the first page, better less.
+ 
+%  \mypar{Motivation} The first task is to motivate what you do.  You can
+%  start general and zoom in one the specific problem you consider.  In
+%  the process you should have explained to the reader: what you are doing,
+%  why you are doing, why it is important (order is usually reversed).
+ 
+%  For example, if my result is the fastest DFT implementation ever, one
+%  could roughly go as follows. First explain why the DFT is important
+%  (used everywhere with a few examples) and why performance matters (large datasets,
+%  realtime). Then explain that fast implementations are very hard and
+%  expensive to get (memory hierarchy, vector, parallel). 
+ 
+%  Now you state what you do in this paper. In our example: 
+%  presenting a DFT implementation that is
+%  faster for some sizes than all the other ones.
+ 
+%  \mypar{Related work} Next, you have to give a brief overview of
+%  related work. For a paper like this, anywhere between 2 and 8
+%  references. Briefly explain what they do. In the end contrast to what
+%  you do to make now precisely clear what your contribution is.

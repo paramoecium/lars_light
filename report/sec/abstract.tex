@@ -1,4 +1,19 @@
-Describe in concise words what you do, why you do it (not necessarily
-in this order), and the main result.  The abstract has to be
-self-contained and readable for a person in the general area. You
-should write the abstract last.
+
+Dictionary learning is a technique that learns a basis set and applies it to a specific data.
+Such approach has been proven to be very effective for signal processing and classification problems.
+Recent paper~\cite{Mairal:2010} has proposed an algorithm that can processed large data set using the idea of \emph{online learning}.
+The backbone of this dictionary learning algorithm is Least Angle Regression (LARS) that reconstructs the specific data using the basis in dictionary.
+
+While training a model, the shorter time an iteration needs, the more data can be consumed and the more general the trained model can be.
+Therefore, in this project, we aim to optimize the LARS algorithm which is not only the main component of online dictionary learning but is also widely used for applications related to feature selection.
+
+We started with implementing a baseline version from scratch, referencing a more general implementation in C++ and CBLAS \cite{larscpp}.
+We optimize the baseline implementation by reusing computations, improving locality, and applying instruction-level parallelism and vectorization. 
+We achieved a 7.2 times speed-up in total and increase the performance from 0.57 flops/cycle to 4.10 flops/cycle.
+
+
+
+% Describe in concise words what you do, why you do it (not necessarily
+% in this order), and the main result.  The abstract has to be
+% self-contained and readable for a person in the general area. You
+% should write the abstract last.a
