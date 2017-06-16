@@ -24,5 +24,7 @@ while (COMPUTE_LAMBDA() > LAMBDA)
 ```
 
 Branches:
+
 master: baseline, no optimization
+
 opt_all: optimized with all strategies mentioned in the report
