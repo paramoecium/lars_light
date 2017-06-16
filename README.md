@@ -1,5 +1,5 @@
 # lars_light
-a header-only implementation of Lars(least angle regression)
+a light-weight implementation of Lars(least angle regression)
 
 [Efron, Bradley, et al. "Least angle regression." The Annals of statistics 32.2 (2004): 407-499.](http://statweb.stanford.edu/~tibs/ftp/lars.pdf)
 
@@ -22,3 +22,7 @@ while (COMPUTE_LAMBDA() > LAMBDA)
   GET_GAMMA()
   UPDATE_BETA()
 ```
+
+Branches:
+master: baseline, no optimization
+opt_all: optimized with all strategies mentioned in the report
