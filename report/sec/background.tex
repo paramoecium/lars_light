@@ -1,22 +1,25 @@
 
-In this section, we first introduce a formal representation of LARS and the algorithm that is implemented to solve the formulas.
-We then introduce Incremental Cholesky decomposition in Section~\ref{ssec:cholesky} and formulate how we calculate the cost of the program in Section~\ref{ssec:cost-analysis} and show the exact number of operations throughout the whole program in Table~\ref{tab:cost}.
+In this section, we provide necessary information to understand the implementation of the LARS algorithm.
+We first formally define LARS and explain the algorithm that solve the given formulas in Section~\ref{ssec:lars}
+We then introduce Incremental Cholesky decomposition in Section~\ref{ssec:cholesky} and formulate how we calculate the cost of the program in Section~\ref{ssec:cost-analysis}.
+At last, in Tabel~\ref{tab:cost} we present the exact number of operations of the entire program.
 
 \subsection{A Formal Definition of LARS}
-An L1-regularized linear regression problem is described as follows:
+\label{ssec:lars}
+A L1-regularized linear regression problem and its dual form, solved by LARS, is described respectively as follows:
 $$
 min_\beta{||y-X\beta||^2_2} \ s.t\ ||\beta||_1 \leq l
 $$
-And the dual form of the problem that LARS solves:
 $$
 min_\beta{||y-X\beta||^2_2} + \lambda||\beta||_1
 $$
 
-A more formal representation of how LARS produces a piece-wise linear solution path is described in Algorithm~\ref{alg:lars}.
-In the beginning of the algorithm, the current residual is equal to the input $y$. The correlation is initialized at line~\ref{alg:lars:initailize_correlation}.
-In each iteration, the correlation is updated and the most correlated basis to current residual is added into the active set $A$ as shown in line~\ref{alg:lars:get_active_idx} - \ref{alg:lars:get_active_idx_end}.
+A more detailed explanations of how LARS produces a piece-wise linear solution path is described in Algorithm~\ref{alg:lars}.
+Initially, the current residual is equal to the input $y$. 
+The correlation between the current approximation and the current residual is initialized (line~\ref{alg:lars:initailize_correlation}).
+In each iteration, the correlation is updated and the most correlated basis to current residual is added into the active set $A$ (line~\ref{alg:lars:get_active_idx} - \ref{alg:lars:get_active_idx_end}).
 The unit vector of the equiangular direction, $u_A$, is computed in line~\ref{alg:lars:cholesky} - \ref{alg:lars:get_a}, and the distance to walk is computed at line~\ref{alg:lars:get_gamma}.
-The current approximation of $y$ is then update at line~\ref{alg:lars:update_beta}.
+The current approximation of $y$ is then updated at line~\ref{alg:lars:update_beta}.
 The \texttt{while} loop continues until the $\hat{\lambda}$, computed at line~\ref{alg:lars:compute_lambda} is greater than the given parameter $\lambda$.
 
 
@@ -67,11 +70,15 @@ The \texttt{while} loop continues until the $\hat{\lambda}$, computed at line~\r
 \subsection{Incremental Cholesky}
 \label{ssec:cholesky}
 %\mypar{baseline implementation}
-In order to solve $w_A$, the weighting function that composes the new direction as shown in line~\ref{alg:lars:inversion} of the Algorithm~\ref{alg:lars}, we have to calculate the inverse of the correlation matrix of the active basis. Throughout each iteration, one new basis will be added into the active basis. Instead of recalculating the inverse, which is $O(n^3)$ in complexity, in every iteration, we use incremental cholesky, which is $O(N^2)$ in complexity, that updates the triangular solver according to the newly added basis in each iteration.
+$w_A$ (line~\ref{alg:lars:inversion}, Algorithm~\ref{alg:lars} is the weighting function that composes the new direction to march along.
+$w_A$ is decided by the inversion of the correlation matrix of all the current active basis, $G_A$.
+Since the active set grows by one in every iteration, $G_A$ has to be recalculated according to the current active set.
+Instead of solving the entire inverse matrix, which is $O(n^3)$ in complexity, in every iteration,
+we only update the inverse matrix according to the newly added basis.
+Such technique is called Incremental Cholesky, and is only of $O(N^2)$ complexity for each update.
+We separate Incremental Cholesky into two parts: 
 
-We separate the baseline version of implementation that solves $w_A = G_A^{-1} s_A$ into two parts: \textit{update cholesky solver} and \textit{backsolve the target}.
-
-\mypar{Update cholesky solver}
+\mypar{Update Cholesky solver}
 Suppose we have a correlation matrix $X_{A_{t-1}}^T X_{A_{t-1}}$, in iteration $t$, to update the correlation matrix with the new basis $v$, we only add a new column and a new row to the previous correlation matrix, getting the new correlation matrix:
 \[
 G_{A_t} = 
@@ -101,7 +108,10 @@ Inverting correlation matrix $G_{A_t}$ is inverting the corresponding Cholesky d
 \subsection{Cost Analysis}
 \label{ssec:cost-analysis}
 % Define cost measure
-Each math function (add, mult, div, sqrt, etc.) is associated with a specific number of floating point operations, which is derived from the proportion of its throughput to the throughput of floating point addition. For example, a division of two doubles counts as 16 floating point operations, because the throughput of  \texttt{\_mm256\_div\_pd} is $1/8$ according to Intel Intrinsics Guide \cite{Intrinsics} while the throughput of \texttt{\_mm256\_add\_pd} is two. The relative floating point operation counts of all math functions used in the algorithm is listed in Table~\ref{tab:flop_def}.
+Each math function (add, mult, div, sqrt, etc.) is associated with a specific number of floating point operations.
+We derived the corresponding floating point operations according to the ratio of its throughput to the throughput of floating point addition.
+For example, a division of two doubles is counted as 16 floating point operations, because the throughput of \texttt{\_mm256\_div\_pd} is $1/8$ while \texttt{\_mm256\_add\_pd} is 2\cite{Intrinsics}.
+The relative floating point operation counts of all code segments in the algorithm is listed in Table~\ref{tab:flop_def}.
  
 \begin{table}
 \centering
@@ -115,9 +125,9 @@ flop count & 1 & 1 & 1 & 1 & 16 & 24 & 1.5 \\ \hline
 \end{table}
 
 %% Description for the table.
-Since we are solving sparse and overcomplete representations of input, the dictionary size $k$ is usually larger than the signal dimension $d$. The number of iterations in LARS depends on the regularization parameter $\lambda$ and the values of the target signal. For simplicity of analysis, we set $k = 2d$ and $\lambda = 0$, so that the algorithm always ends in $d$ iterations. 
+Since we are solving sparse and over-complete representation of the input, dictionary size $k$ is usually larger than signal dimension $d$. The number of iterations in LARS depends on regularization parameters $\lambda$ and the value of target signals. For simplicity of analysis, we set $k = 2d$ and $\lambda = 0$, so that the algorithm always terminates on the $d^{th}$ iteration. 
 
-For optimization purposes, we counted the exact floating point operations within different parts of the algorithm LARS as shown in Table~\ref{tab:cost}. With Table~\ref{tab:flop_def} and Table~\ref{tab:cost}, we can calculate the approximate floating point operation counts of each code segment.
+For optimization purposes, we counted the exact floating point operations within different parts of the algorithm LARS as shown in Table~\ref{tab:cost}. With Table~\ref{tab:flop_def} and Table~\ref{tab:cost}, we can calculate the floating point operation counts of each code segment.
 
 
 \begin{table*}[ht!]

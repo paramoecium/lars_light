@@ -10,18 +10,22 @@
 
 % \mypar{Online Sparse Dictionary Learning}
 % % include the psuedo-code from the original paper?
-Dictionary learning has been used widely in machine learning, signal processing and image processing.
-In sparse dictionary learning, the goal is to approximate a given signal using only a few basis elements from the learned dictionary. More specifically, given a bunch of signals $Y$ in $\mathbb{R}^d$ and a dictionary $X$ in $\mathbb{R}^{d \times k}$, with k columns referred to as atoms, the algorithm is meant for finding a linear combination of most representative atoms from the dictionary.
+
+Least Angle Regression (LARS) is a well-known sparse coding algorithm proposed by Bardley Efron et al\cite{Efron:04}. The algorithm is known for being less greedy and more computationally efficient to its ancestors, Forward Selection\lc{cite} and Forward Stagewise\lc{cite}.
+One of the most common application of LARS is features selection.
+Often, while training on really large dataset, the number of features within a data significantly increase the time to train the model. To decrease the number of features that represent a data while preserving the characteristics, the algorithm that is used to select the remaining features is important.
+
+Dictionary learning, widely used in machine learning, signal processing, and image processing, is a typical case that uses feature selection algorithms.
+The goal of dictionary learning is to approximate a given signal using only a few basis elements from the learned dictionary. More specifically, given a bunch of signals $Y$ in $\mathbb{R}^d$ and a dictionary $X$ in $\mathbb{R}^{d \times k}$, with k columns referred to as atoms, the algorithm is meant for finding a linear combination of most representative atoms from the dictionary.
 
 To handle very large training sets and dynamic training data changing over time, Mairal et al. proposes an online learning algorithm for dictionary learning\cite{Mairal:2010}. In each iteration $i$ of the algorithm, sparse coding is used to compute the sparse representation $\beta_i$ of a random sample $y$ in $\mathbb{R}^d$ from a distribution $p(y)$. $\beta_i$ is then used to update the dictionary $X$.
 
 % \mypar{Least Angle Regression (LARS)}
-LARS is one of the well-known sparse coding algorithms, developed by Bradley Efron et al.\cite{Efron:04} that is less greedy and more computationally efficient. Given a collection of column vectors as dictionary $X$, LARS always picks the columns of $X$ most correlated to current residual and walk along their equiangular direction until some other unused column has as much correlation with the current residual.
+While feature selection algorithm like LARS are implemented to decrease the amount of time needed for training, it is obvious that the overhead of applying it should be as little as possible.
+And therefore, the goal of this paper is to proposed optimization methods that are applicable to implementations of LARS and its variants, such as LASSO\lc{cite}, and justify these optimization methods do speed up the entire procedure and enhance the performance.
 
-Since LARS is a significant part of the dictionary learning and is also widely applicable in feature selection applications, the goal of this paper is to proposed optimization methods that are applicable to the implementation of LARS ans its variants, and justify these optimization methods do speed up the entire procedure and enhance the performance.
-
-In the following sections, we first formally define LARS, introduce incremental Cholesky decomposition and shows a detail cost analysis on the entire procedure in Section~\ref{sec:background}.
-Then we present the optimization we applied in Section~\ref{sec:method} and show the result in Section~\ref{sec:experiment}. At last, we summarize our work and list future works in Section~\ref{sec:conclusions}.
+In the following sections, we formally define LARS, introduce incremental Cholesky decomposition and shows a detail cost analysis on the entire procedure in Section~\ref{sec:background}.
+We present the optimization we applied in Section~\ref{sec:method} and show the result in Section~\ref{sec:experiment}. At last, we summarize our work in Section~\ref{sec:conclusions}.
 
 
 

@@ -1,9 +1,8 @@
 
 % First introduce what we've done
 % Show cycles pie chart and tell why we put our focus on the four fat parts
-In this section, we will fist briefly explain the baseline implementation of the LARS algorithm.
-We also state the assumption that simplify the code. 
-We then elaborate on how we optimize the most time-consuming parts of the algorithm and go through some general optimization.
+In this section, we fist briefly explain the baseline implementation of the LARS algorithm and state assumptions made to simplify the code. 
+We then elaborate on optimization on most time-consuming parts of the algorithm and go through some general optimization.
 
 
 % \subsection{Baseline implementation}
@@ -11,19 +10,19 @@ We then elaborate on how we optimize the most time-consuming parts of the algori
 % Assumptions
 % How we segment our code and why
 
-Since each step of the algorithm requires results from the previous step, we segmented our code into several segments as mentioned in Table~\ref{tab:cost}.
+Since each step of the algorithm requires results from the previous step, we segmented our code into several segments accordingly, as mentioned in Table~\ref{tab:cost}.
 
-The baseline is a straight-forward implementation of Algorithm~\ref{alg:lars} in C++ from scratch. The dictionary $X$, the largest array of the algorithm, is store in a column-majored format before any optimization. For implementation simplicity, we assume both dimensions of the dictionary, $d$ and $k$, are power of two and divisible by 16. Figure~\ref{fig:pie_before} shows that \textsc{Compute\_Lambda}, \textsc{Compute\_A}, and \textsc{Cholesky} are the most expensive components. So optimizing these parts has the highest priority. 
+The baseline is a straight-forward implementation of Algorithm~\ref{alg:lars} in C++ from scratch. The dictionary $X$, the largest array of the algorithm, is store in a column-majored format before any optimization. For implementation simplicity, we assume both dimensions of the dictionary, $d$ and $k$, are power of two and divisible by 16. Figure~\ref{fig:pie_before} shows that \textsc{Compute\_Lambda}, \textsc{Compute\_A}, and \textsc{Cholesky} are the most expensive components. Optimizing these parts therefore has the highest priority. 
 
 \begin{figure}
 \centering
   \includegraphics[scale=0.29]{./pic/pie_before.png}
-  \caption{Run time before optimization}
+  \caption{Run-time before optimization}
   \label{fig:pie_before}
 \end{figure}
 
 \subsection{Reuse previous computation}
-Most part of our algorithm is computational bounded. Therefore, we try to find redundant computations and reuse the result of previous computation if possible.
+Most parts of our algorithm are computational bounded. Therefore, we try to find redundant computations and reuse the result of previous computation.
 Possible methods proposed are storing previous computed value and reuse previous computation according to mathematical implications.
 
 \mypar{Trade computation with memory}
@@ -36,13 +35,17 @@ It is clear that
                 &= G_A \hat{\beta} - X_A^T y
     \end{split}
 \end{equation}
-Since $G_A$ is calculated when updating the Cholesky solver in line~\ref{alg:lars:cholesky} of Algorithm~\ref{alg:lars}, we store this value in a new variable $G_A$. This requires more memory for variables since previously solving an incremental Cholesky system only need the last row in each iteration.
-Since this method not only save computation time but also reduce accessed memory, which is $\mathbb{R}^{|A| \times |A|}$ now while the previous one is $\mathbb{R}^{|A| \times k}$, where $|A|$ is the size of the active set, we achieve significant speed-up in this segment after this modification.
+Since $G_A$ is calculated when updating the Cholesky solver (line~\ref{alg:lars:cholesky}, Algorithm~\ref{alg:lars}), we store this value in a new array. This requires more memory for variables since, previously, solving an incremental Cholesky system only need the last row of $G_A$ in each iteration.
+This method not only save computation time but also reduce accessed memory.
+It decreases the number of memory access from $\mathbb{R}^{|A| \times k}$ to $\mathbb{R}^{|A| \times |A|}$, where $|A|$ is the size of the active set.
+We achieve significant speed-up in this segment with this modification.
 
 \mypar{Remove computation using mathematical implication}
-In the original baseline version of the algorithm, the target value $s_A$ fed into the Cholesky solver is re-computed at every iteration (line~\ref{alg:lars:get_active_idx_end}, Algorithm~\ref{alg:lars}), because the correlation between the current residual and the target is updated according to the current approximation in each iteration (line~\ref{alg:lars:get_active_idx}, Algorithm~\ref{alg:lars}).
-Since the algorithm assures convergence, it shows that the sign of the correlation does not change once it is added into the active set.
-Therefore, instead of recomputing the sign of each entry in every iteration, only the sign of the latest added entry is calculated in each iteration.
+In the baseline version of the implementation,
+the target value $s_A$ is re-computed at every iteration before fed into the Cholkesy solver(line~\ref{alg:lars:get_active_idx_end}, Algorithm~\ref{alg:lars}).
+The reason to do so is that the correlation between the current residual and the target is updated according to the current approximation in each iteration (line~\ref{alg:lars:get_active_idx}, Algorithm~\ref{alg:lars}).
+Since the algorithm assures convergence, it implies that the sign of the correlation does not change once it is added into the active set.
+Therefore, instead of recomputing the sign of each entry in every iteration, only the sign of the  added entry is calculated.
 
 \subsection{Improve locality}
 Since there are a lot of memory access throughout the algorithm.

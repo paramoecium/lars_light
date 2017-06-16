@@ -5,6 +5,7 @@ present the results of our optimization.
 
 \subsection{Experimental setup}
 
+The program is implemented in double-precision floating points due to precision problems.
 All performance experiments are conducted on Red Hat Enterprise Linux 7 running on a machine with the specifications as shown in Table~\ref{tab:cpu-info}.
 % CPU:Intel i7-6700 CPU @ 3.40GHz (skylake)\\
 % L1 data cache,    	line size 64,  8-ways,	64 sets, size 32k\\
@@ -70,19 +71,20 @@ Figure~\ref{fig:performance} shows the performance gain from all the optimizatio
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.5\textwidth]{./pic/performance.png}
-\caption{Performance Comparison}
+\caption{Performance Comparison. \textsc{Baseline} is compiled w/o optimization flags, \textsc{ILP+SIMD} is baselin compiled with optimization falgs and \textsc{ALL} is our final optimized version.}
 \label{fig:performance}
 \end{figure}
 
 
+As the input size increases, the overhead of optimization, such as extra branches for corner case of blocking and unrolling, become insignificant as the benefit grows faster. On the other hand, the performance and the speed-up gain drop dramatically on input sizes larger than 1024. One reason might be that for input size of 1024, the allocated memory space exceed the 8MB physical memory space. Then the run time is dominated by the access time of hard disk.
+
+
 \begin{figure*}
 \centering
-\includegraphics[scale=0.28]{./pic/bandwidth.jpg}
+\includegraphics[scale=0.25]{./pic/bandwidth.jpg}
 \caption{Measured memory bandwidth}
 \label{fig:mem-bw}
 \end{figure*}
-
-As the input size increases, the overhead of optimization, such as extra branches for corner case of blocking and unrolling, become insignificant as the benefit grows faster. On the other hand, the performance and the speed-up gain drop dramatically on input sizes larger than 1024. One reason might be that for input size of 1024, the allocated memory space exceed the 8MB physical memory space. Then the run time is dominated by the access time of hard disk.
 
 The memory traffic is estimated as: 
 $$
@@ -98,6 +100,7 @@ As argued by Georg Ofenbeck et al.\cite{ofenbeck2014applying} the actual traffic
 \end{figure}
 
 From the roofline plot in Figure~\ref{fig:roofline}, we know that the larger the input size is (larger than 256), the more likely the algorithm is memory bounded.
+
 
 
 

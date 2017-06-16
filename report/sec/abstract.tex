@@ -2,9 +2,9 @@
 Dictionary learning is a technique that learns a basis set and applies it to a specific data.
 Such approach has been proven to be very effective for signal processing and classification problems.
 Recent paper~\cite{Mairal:2010} has proposed an algorithm that can processed large data set using the idea of \emph{online learning}.
-The backbone of this dictionary learning algorithm is Least Angle Regression (LARS) that reconstructs the specific data using the basis in dictionary.
+The backbone of this dictionary learning algorithm is Least Angle Regression (LARS) that reconstructs the specific data, often called after signals, using the basis in dictionary.
 
-While training a model, the shorter time an iteration needs, the more data can be consumed and the more general the trained model can be.
+While training a model, the shorter time each iteration needs, the more data can be consumed and the more general the trained model can be.
 Therefore, in this project, we aim to optimize the LARS algorithm which is not only the main component of online dictionary learning but is also widely used for applications related to feature selection.
 
 We started with implementing a baseline version from scratch, referencing a more general implementation in C++ and CBLAS \cite{larscpp}.
