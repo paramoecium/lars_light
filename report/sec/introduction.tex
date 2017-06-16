@@ -11,7 +11,7 @@
 % \mypar{Online Sparse Dictionary Learning}
 % % include the psuedo-code from the original paper?
 
-Least Angle Regression (LARS) is a well-known sparse coding algorithm proposed by Bardley Efron et al\cite{Efron:04}. The algorithm is known for being less greedy and more computationally efficient to its ancestors, Forward Selection\lc{cite} and Forward Stagewise\lc{cite}.
+Least Angle Regression (LARS) is a well-known sparse coding algorithm proposed by Bardley Efron et al\cite{Efron:04}. The algorithm is known for being less greedy and more computationally efficient to its ancestors, Forward Selection and Forward Stagewise.
 One of the most common application of LARS is features selection.
 Often, while training on really large dataset, the number of features within a data significantly increase the time to train the model. To decrease the number of features that represent a data while preserving the characteristics, the algorithm that is used to select the remaining features is important.
 
@@ -22,7 +22,7 @@ To handle very large training sets and dynamic training data changing over time,
 
 % \mypar{Least Angle Regression (LARS)}
 While feature selection algorithm like LARS are implemented to decrease the amount of time needed for training, it is obvious that the overhead of applying it should be as little as possible.
-And therefore, the goal of this paper is to proposed optimization methods that are applicable to implementations of LARS and its variants, such as LASSO\lc{cite}, and justify these optimization methods do speed up the entire procedure and enhance the performance.
+And therefore, the goal of this paper is to proposed optimization methods that are applicable to implementations of LARS and its variants, such as LASSO, and justify these optimization methods do speed up the entire procedure and enhance the performance.
 
 In the following sections, we formally define LARS, introduce incremental Cholesky decomposition and shows a detail cost analysis on the entire procedure in Section~\ref{sec:background}.
 We present the optimization we applied in Section~\ref{sec:method} and show the result in Section~\ref{sec:experiment}. At last, we summarize our work in Section~\ref{sec:conclusions}.
