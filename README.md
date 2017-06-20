@@ -28,6 +28,7 @@ Branches:
 master: baseline, no optimization
 
 opt_all: optimized with all strategies mentioned in the report
-
-![alt text](https://github.com/paramoecium/lars_light/blob/master/report/pic/roofline.png?raw=true)
-![alt text](https://github.com/paramoecium/lars_light/blob/master/report/pic/performance.png?raw=true)
+<div style="text-align:center">
+<img src="https://github.com/paramoecium/lars_light/blob/master/report/pic/roofline.png" width="400">
+<img src="https://github.com/paramoecium/lars_light/blob/master/report/pic/performance.png" width="440">
+</div>
