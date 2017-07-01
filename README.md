@@ -6,9 +6,10 @@ Reference:
 
 Branch
 ------------
-master: baseline, no optimization
+[master](https://github.com/paramoecium/lars_light): baseline, no optimization
 
-opt_all: optimized with all strategies mentioned in the report with regard to the hardware architecture of Intel i7-6700 CPU, achieving 7.2x speed-up
+
+[opt_all](https://github.com/paramoecium/lars_light/tree/opt_all): optimized with all strategies mentioned in the report with regard to the hardware architecture of Intel i7-6700 CPU, achieving 7.2x speed-up
 
 Usage
 ------------
